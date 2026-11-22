@@ -1,0 +1,2456 @@
+<title>Математический калькулятор</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: слева список фигур или разделов алгебры, справа рабочая зона (поля + схема или график, ниже результаты с формулами); тренажёр отдельной вкладкой. Предмет — переключатель «Геометрия / Алгебра» в шапке. */
+:root {
+  --bg: #F0F3F6;
+  --panel: #FFFFFF;
+  --ink: #14222D;
+  --muted: #566774;
+  --line: #D3DCE4;
+  --accent: #1F4FB4;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E3EBFA;
+  --grid: #E4EAF0;
+  --hint-bg: #FFF2CC;
+  --hint-ink: #5E3F00;
+  --ok: #13692D;
+  --ok-bg: #E2F3E7;
+  --bad: #A91F18;
+  --bad-bg: #FBE6E4;
+  --warm: #B4531F;
+  --f-sans: "IBM Plex Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1620;
+    --panel: #15212E;
+    --ink: #E5ECF2;
+    --muted: #93A4B3;
+    --line: #29394A;
+    --accent: #86B2FF;
+    --accent-ink: #0A1A35;
+    --accent-soft: #1B2D4A;
+    --grid: #1B2937;
+    --hint-bg: #3A2E10;
+    --hint-ink: #F3D286;
+    --ok: #6AD493;
+    --ok-bg: #12301F;
+    --bad: #FF9088;
+    --bad-bg: #3B1815;
+    --warm: #F0A36B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1620;
+  --panel: #15212E;
+  --ink: #E5ECF2;
+  --muted: #93A4B3;
+  --line: #29394A;
+  --accent: #86B2FF;
+  --accent-ink: #0A1A35;
+  --accent-soft: #1B2D4A;
+  --grid: #1B2937;
+  --hint-bg: #3A2E10;
+  --hint-ink: #F3D286;
+  --ok: #6AD493;
+  --ok-bg: #12301F;
+  --bad: #FF9088;
+  --bad-bg: #3B1815;
+  --warm: #F0A36B;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.5 var(--f-sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 56px;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { max-width: 1120px; margin: 0 auto; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-bottom: 16px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand svg { flex: none; width: 34px; height: 34px; }
+h1 { margin: 0; font-size: 1.375rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 16px; }
+.subj { display: flex; gap: 4px; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.subj button { border: 0; background: none; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; color: var(--muted); }
+.subj button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.subj button:not([aria-pressed="true"]):hover { color: var(--ink); }
+.tabs { display: flex; gap: 4px; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.tab { border: 0; background: none; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.tab:not([aria-selected="true"]):hover { color: var(--ink); }
+
+/* shared */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.eyebrow { margin: 0 0 8px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); padding: 9px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; line-height: 1.3; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.alt { background: transparent; color: var(--accent); }
+.btn.alt:hover:not(:disabled) { background: var(--accent-soft); filter: none; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.mono { font-family: var(--f-mono); }
+.field-input, select.field-input, textarea.field-input {
+  width: 100%; min-height: 40px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; font-family: var(--f-mono); font-size: 1rem;
+}
+.field-input:focus-visible { outline-offset: 0; border-color: var(--accent); }
+.field-input[aria-invalid="true"] { border-color: var(--bad); }
+textarea.field-input { min-height: 112px; resize: vertical; line-height: 1.5; }
+
+/* calculator */
+.calc { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
+.figs { display: flex; flex-direction: column; gap: 2px; }
+.figs h2 { margin: 16px 0 6px; }
+.figs h2:first-child { margin-top: 0; }
+.fig { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--ink); }
+.fig:hover { background: var(--accent-soft); }
+.fig[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.picker-m { display: none; }
+
+.workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; }
+.workbench h2 { margin: 0 0 12px; font-size: 1.125rem; font-weight: 600; }
+.fields { display: flex; flex-direction: column; gap: 12px; }
+.field label { display: block; margin-bottom: 4px; font-size: 0.875rem; color: var(--muted); }
+.field label b { font-family: var(--f-mono); font-weight: 500; color: var(--ink); margin-right: 6px; }
+.err { margin: 4px 0 0; font-size: 0.8125rem; color: var(--bad); min-height: 0; }
+.err:empty { display: none; }
+.note { margin: 12px 0 0; font-size: 0.8125rem; color: var(--muted); }
+.diagram { padding: 0; overflow: hidden; background-color: var(--panel);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 16px 16px; display: flex; align-items: center; justify-content: center; min-height: 240px; }
+.diagram svg { width: 100%; height: auto; max-height: 300px; display: block; }
+.results { grid-column: 1 / -1; }
+.rows { margin: 0; padding: 0; list-style: none; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; padding-top: 0; }
+.row .name { font-weight: 500; }
+.row .formula { display: block; font-family: var(--f-mono); font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.row .val { font-family: var(--f-mono); font-size: 1.25rem; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.row .unit { font-size: 0.8125rem; color: var(--muted); margin-left: 4px; }
+.row .val.long { font-size: 1rem; }
+.row.stack { grid-template-columns: minmax(0, 1fr); }
+.row.stack .val { text-align: left; }
+.fhint { margin: 4px 0 0; font-size: 0.8125rem; color: var(--muted); }
+.note:empty { display: none; }
+.workbench.nodia { grid-template-columns: minmax(0, 1fr); }
+.msg { margin: 0; padding: 12px 14px; border-radius: 6px; background: var(--bad-bg); color: var(--bad); }
+.msg.neutral { background: var(--accent-soft); color: var(--ink); }
+
+/* diagram marks */
+.shape { fill: var(--accent-soft); stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; }
+.shape2 { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.dash { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 4; stroke-linecap: round; }
+.dim { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+.axis { stroke: var(--line); stroke-width: 1.2; }
+.dot { fill: var(--accent); }
+.dot.hollow { fill: var(--panel); stroke: var(--accent); stroke-width: 1.8; }
+.diagram svg { user-select: none; -webkit-user-select: none; }
+.handle { cursor: grab; outline: none; touch-action: none; }
+.handle .hit { fill: transparent; }
+.handle .ring { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0; transition: opacity 0.12s; }
+.handle .knob { fill: var(--accent); stroke: var(--panel); stroke-width: 2.5; transform-box: fill-box; transform-origin: center; transition: transform 0.12s; }
+.handle:hover .ring, .handle:focus-visible .ring, .handle.active .ring { opacity: 0.55; }
+.handle:hover .knob, .handle:focus-visible .knob, .handle.active .knob { transform: scale(1.2); }
+.diagram.dragging, .diagram.dragging .handle { cursor: grabbing; }
+.lbl { font: 500 12.5px var(--f-mono); fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3.5px; stroke-linejoin: round; }
+.lbl.sym { fill: var(--accent); }
+.diagram.plot { background-image: none; }
+.pgrid { stroke: var(--line); stroke-width: 1; opacity: 0.55; }
+.paxis { stroke: var(--muted); stroke-width: 1.4; }
+.pframe { fill: none; stroke: var(--line); stroke-width: 1.2; }
+.lbl.tick { font-size: 10px; fill: var(--muted); stroke-width: 3px; }
+.lbl.lg { font-size: 11.5px; }
+.pc1 { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.pc2 { fill: none; stroke: var(--warm); stroke-width: 2.2; stroke-dasharray: 7 4; stroke-linecap: round; }
+.bar { fill: var(--accent); opacity: 0.85; }
+.dot.warm { fill: var(--warm); }
+
+/* trainer */
+.trainer { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.setup-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.levels { display: flex; flex-wrap: wrap; gap: 6px; border: 0; padding: 0; margin: 0; }
+.levels legend { padding: 0; }
+.levels label { position: relative; }
+.levels input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.levels span { display: block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-weight: 500; }
+.levels input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.levels input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.count-input { width: 96px; }
+.lead { margin: 0 0 16px; color: var(--muted); }
+.progress { height: 6px; background: var(--accent-soft); border-radius: 3px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.25s; }
+.meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin: 0 0 8px; color: var(--muted); font-size: 0.875rem; }
+.q { margin: 20px 0; font-size: 1.3125rem; line-height: 1.4; text-wrap: pretty; }
+.answer-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.answer-row .field-input { width: 160px; }
+.hintbox { margin: 16px 0 0; padding: 12px 14px; border-radius: 6px; background: var(--hint-bg); color: var(--hint-ink); }
+.hintbox p { margin: 0; }
+.hintbox p + p { margin-top: 6px; }
+.feedback { margin: 16px 0 0; padding: 12px 14px; border-radius: 6px; font-weight: 500; }
+.feedback.ok { background: var(--ok-bg); color: var(--ok); }
+.feedback.bad { background: var(--bad-bg); color: var(--bad); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.score-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 0 0 4px; }
+.score-big b { font-family: var(--f-mono); font-size: 2.5rem; font-weight: 500; line-height: 1.1; }
+.score-big span { font-size: 1.125rem; }
+.review { margin: 16px 0 0; padding: 0; list-style: none; }
+.review li { padding: 12px 0; border-top: 1px solid var(--line); }
+.review .t { margin: 0 0 4px; }
+.review .r { margin: 0; font-size: 0.875rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.tag { font-weight: 600; }
+.tag.ok { color: var(--ok); }
+.tag.bad { color: var(--bad); }
+
+footer { margin-top: 32px; font-size: 0.8125rem; color: var(--muted); max-width: 70ch; }
+
+@media (max-width: 899px) {
+  .calc { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .figs { display: none; }
+  .picker-m { display: block; }
+}
+@media (max-width: 679px) {
+  .workbench { grid-template-columns: minmax(0, 1fr); }
+  .row.mid { grid-template-columns: minmax(0, 1fr); }
+  .row.mid .val { text-align: left; }
+  .nav { width: 100%; justify-content: stretch; }
+  .subj { width: 100%; }
+  .subj button { flex: 1; }
+  .tabs { width: 100%; }
+  .tab { flex: 1; }
+  .q { font-size: 1.125rem; }
+}
+@media (prefers-reduced-motion: reduce) { .progress i { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="15" fill="none" stroke="var(--ink)" stroke-width="1.6"/>
+        <polygon points="17,5 29,24 5,24" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="17" y1="5" x2="17" y2="24" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="2 2.5"/>
+      </svg>
+      <h1>Математический калькулятор</h1>
+    </div>
+    <div class="nav">
+    <div class="subj" role="group" aria-label="Предмет">
+      <button type="button" id="subj-geo" aria-pressed="true">Геометрия</button>
+      <button type="button" id="subj-alg" aria-pressed="false">Алгебра</button>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Разделы">
+      <button class="tab" role="tab" id="tab-calculator" aria-controls="view-calculator" aria-selected="true">Калькулятор</button>
+      <button class="tab" role="tab" id="tab-trainer" aria-controls="view-trainer" aria-selected="false" tabindex="-1">Тренажёр</button>
+    </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-calculator" role="tabpanel" aria-labelledby="tab-calculator">
+      <div class="calc">
+        <nav class="figs" id="figs" aria-label="Фигуры"></nav>
+        <div class="picker-m">
+          <label class="eyebrow" id="picker-label" for="fig-select">Фигура</label>
+          <select class="field-input" id="fig-select"></select>
+        </div>
+        <div class="workbench">
+          <div class="card">
+            <h2 id="fig-title">Круг</h2>
+            <div class="fields" id="fields"></div>
+            <p class="note" id="calc-note">Подставлены примерные значения. Меняйте их в полях или тяните синие точки на схеме: поля и результат пересчитываются сразу. У точки на схеме работают и стрелки (Shift — крупнее).</p>
+          </div>
+          <div class="card diagram" id="diagram"></div>
+          <div class="card results">
+            <p class="eyebrow">Результат</p>
+            <div id="results" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-trainer" role="tabpanel" aria-labelledby="tab-trainer" hidden>
+      <div class="trainer">
+        <div class="card" id="q-setup">
+          <p class="eyebrow" id="q-eyebrow">Тренажёр</p>
+          <p class="lead" id="q-lead">Задачи с новыми числами при каждом запуске. Ответ округляйте до двух знаков, допустима погрешность 0,5%. Число π берите с точностью 3,14159. К каждой задаче есть две подсказки: сначала формула, потом порядок действий.</p>
+          <div class="setup-grid">
+            <fieldset class="levels" id="levels">
+              <legend class="eyebrow">Уровень</legend>
+              <label><input type="radio" name="level" value="1"><span>Лёгкий</span></label>
+              <label><input type="radio" name="level" value="2"><span>Средний</span></label>
+              <label><input type="radio" name="level" value="3"><span>Сложный</span></label>
+              <label><input type="radio" name="level" value="4"><span>Смешанный</span></label>
+            </fieldset>
+            <div>
+              <label class="eyebrow" for="count" style="display:block">Число задач (1–20)</label>
+              <input class="field-input count-input" id="count" type="number" min="1" max="20" step="1" inputmode="numeric" value="5">
+              <p class="err" id="count-err"></p>
+            </div>
+            <div><button class="btn" id="start" type="button">Начать</button></div>
+          </div>
+        </div>
+
+        <div class="card" id="q-play" hidden>
+          <p class="meta"><span id="q-num">Задача 1 из 5</span><span id="q-level">Лёгкий</span><span id="q-score">Верно: 0 из 0</span></p>
+          <div class="progress" aria-hidden="true"><i id="q-bar"></i></div>
+          <p class="q" id="q-text"></p>
+          <div class="answer-row">
+            <label class="eyebrow" for="q-answer" style="margin:0">Ответ</label>
+            <input class="field-input" id="q-answer" type="text" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <button class="btn" id="q-check" type="button">Проверить</button>
+          </div>
+          <p class="note" id="q-format"></p>
+          <p class="err" id="q-err" role="alert"></p>
+          <div class="hintbox" id="q-hints" hidden></div>
+          <div class="feedback" id="q-feedback" hidden role="status"></div>
+          <div class="actions">
+            <button class="btn alt" id="q-hint" type="button">Подсказка</button>
+            <button class="btn alt" id="q-skip" type="button">Пропустить</button>
+            <button class="btn" id="q-next" type="button" hidden>Дальше</button>
+            <button class="btn alt" id="q-stop" type="button">Закончить</button>
+          </div>
+        </div>
+
+        <div class="card" id="q-done" hidden>
+          <p class="eyebrow">Итог</p>
+          <p class="score-big"><b id="d-score">0 из 0</b><span id="d-grade"></span></p>
+          <p class="lead" id="d-sub" style="margin-bottom:0"></p>
+          <ul class="review" id="d-review"></ul>
+          <div class="actions">
+            <button class="btn" id="d-again" type="button">Ещё раз</button>
+            <button class="btn alt" id="d-settings" type="button">Изменить настройки</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footer-note">
+    Длины считаются в одних и тех же единицах (ед.), площади получаются в ед.², объёмы в ед.³. Число π берётся с полной точностью, углы задаются в градусах.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var PI = Math.PI;
+  var rad = function (d) { return d * PI / 180; };
+  var clamp = function (x, lo, hi) { return Math.min(hi, Math.max(lo, x)); };
+
+  /* ------------------------------------------------------------------ числа */
+  function CalcError(msg) { this.message = msg; }
+  CalcError.prototype = Object.create(Error.prototype);
+
+  function fmt(x, d) {
+    if (d === undefined) d = 4;
+    if (!Number.isFinite(x)) throw new CalcError('Число слишком велико для вычисления.');
+    var s = x.toFixed(d).replace(/\.?0+$/, '');
+    if (s === '-0' || s === '') s = '0';
+    return s.replace('.', ',');
+  }
+
+  var NUM_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+  function parseValue(raw, f) {
+    var s = String(raw).replace(/\s/g, '').replace(',', '.').replace(/[\u2212\u2013]/g, '-');
+    if (s === '') return { empty: true };
+    if (!NUM_RE.test(s)) return { error: 'Введите число, например 12,5' };
+    var v = Number(s);
+    if (!Number.isFinite(v)) return { error: 'Число слишком велико' };
+    if (f.kind === 'int') {
+      if (!Number.isInteger(v) || v < f.min || v > f.max) return { error: 'Целое число от ' + f.min + ' до ' + f.max };
+    } else if (f.kind === 'pos') {
+      if (v <= 0) return { error: 'Число должно быть больше нуля' };
+      if (f.lt !== undefined && v >= f.lt) return { error: 'Значение должно быть меньше ' + f.lt };
+    }
+    return { value: v };
+  }
+
+  /* вершины многоугольника: "x y; x y; ..." либо по одной на строке */
+  function parsePoly(raw) {
+    var parts = String(raw).split(/[;\n]+/).map(function (p) { return p.trim(); }).filter(Boolean);
+    if (!parts.length) return { empty: true };
+    var pts = [];
+    for (var i = 0; i < parts.length; i++) {
+      var tok = parts[i].split(/\s+/);
+      if (tok.length === 1 && tok[0].indexOf(',') !== -1) tok = tok[0].split(',');
+      if (tok.length !== 2) return { error: 'Вершина ' + (i + 1) + ': нужны две координаты, например «3 4». Вершины разделяйте точкой с запятой или переводом строки.' };
+      var xy = tok.map(function (t) { t = t.replace(',', '.'); return NUM_RE.test(t) ? Number(t) : NaN; });
+      if (!Number.isFinite(xy[0]) || !Number.isFinite(xy[1])) return { error: 'Вершина ' + (i + 1) + ': координаты должны быть числами.' };
+      pts.push(xy);
+    }
+    if (pts.length < 3) return { error: 'Нужно минимум 3 вершины.' };
+    return { value: pts };
+  }
+
+  /* ------------------------------------------------------------ формулы */
+  function heron(a, b, c) {
+    if (a + b <= c || a + c <= b || b + c <= a) throw new CalcError('Такого треугольника не существует: сумма любых двух сторон должна быть больше третьей.');
+    var p = (a + b + c) / 2;
+    return Math.sqrt(p * (p - a) * (p - b) * (p - c));
+  }
+  function polygonArea(pts) {
+    var s = 0;
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i], q = pts[(i + 1) % pts.length];
+      s += p[0] * q[1] - q[0] * p[1];
+    }
+    return Math.abs(s) / 2;
+  }
+  function segInter(p1, p2, p3, p4) {
+    function o(a, b, c) { return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); }
+    function on(a, b, c) { return Math.min(a[0], b[0]) <= c[0] && c[0] <= Math.max(a[0], b[0]) && Math.min(a[1], b[1]) <= c[1] && c[1] <= Math.max(a[1], b[1]); }
+    var d1 = o(p3, p4, p1), d2 = o(p3, p4, p2), d3 = o(p1, p2, p3), d4 = o(p1, p2, p4);
+    if (d1 * d2 < 0 && d3 * d4 < 0) return true;
+    return (d1 === 0 && on(p3, p4, p1)) || (d2 === 0 && on(p3, p4, p2)) || (d3 === 0 && on(p1, p2, p3)) || (d4 === 0 && on(p1, p2, p4));
+  }
+  function checkPolygon(pts) {
+    var n = pts.length;
+    for (var i = 0; i < n; i++) {
+      for (var j = i + 1; j < n; j++) {
+        if (j === i + 1 || (i === 0 && j === n - 1)) continue;
+        if (segInter(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) {
+          throw new CalcError('Стороны многоугольника пересекаются. Введите вершины в порядке обхода.');
+        }
+      }
+    }
+    if (polygonArea(pts) === 0) throw new CalcError('Многоугольник вырожденный: площадь равна нулю.');
+  }
+  function angleBetween(v1, v2) {
+    var dot = v1[0] * v2[0] + v1[1] * v2[1];
+    var n = Math.hypot(v1[0], v1[1]) * Math.hypot(v2[0], v2[1]);
+    return Math.acos(clamp(dot / n, -1, 1)) * 180 / PI;
+  }
+
+  /* ----------------------------------------------------- описание фигур */
+  function row(label, formula, value, kind) { return { label: label, formula: formula, value: value, kind: kind }; }
+  function trow(label, formula, text) { return { label: label, formula: formula, text: text, kind: 'text' }; }
+
+  function triRows(a, b, c, area, areaFormula) {
+    if (Number.isFinite(area) && area <= 1e-12 * a * b) throw new CalcError('Треугольник вырожденный: площадь равна нулю.');
+    var p = a + b + c;
+    return [
+      row('Периметр', 'P = a + b + c', p, 'len'),
+      row('Площадь', areaFormula || 'S = √(p(p−a)(p−b)(p−c)), p = P/2', area, 'area'),
+      row('Радиус вписанной окружности', 'r = S / p', 2 * area / p, 'len'),
+      row('Радиус описанной окружности', 'R = abc / (4S)', a * b * c / (4 * area), 'len')
+    ];
+  }
+
+  /* --- схемы: рисуются строго в масштабе и подгоняются под рамку.
+         Ручки (hdl) стоят на размерах фигуры; во время перетаскивания масштаб заморожен (FROZEN),
+         чтобы ручка шла за пальцем, а после отпускания схема снова подгоняется под рамку. --- */
+  var VW = 320, VH = 220;
+  var FROZEN = null, LASTFIT = null, HANDLES = [], INTERACT = true;
+
+  function fitter(pts, pad) {
+    if (FROZEN) { LASTFIT = FROZEN; return FROZEN; }
+    var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+    var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs), miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
+    var spx = maxx - minx, spy = maxy - miny;
+    var s;
+    if (spx < 1e-9 && spy < 1e-9) s = 1;
+    else s = Math.min((VW - 2 * pad) / Math.max(spx, 1e-9), (VH - 2 * pad) / Math.max(spy, 1e-9));
+    var ox = (VW - spx * s) / 2, oy = (VH - spy * s) / 2;
+    var f = {
+      s: s,
+      p: function (x, y) { return [ox + (x - minx) * s, oy + (maxy - y) * s]; },
+      inv: function (sx, sy) { return [minx + (sx - ox) / s, maxy - (sy - oy) / s]; }
+    };
+    LASTFIT = f;
+    return f;
+  }
+
+  /* шаг привязки: «круглое» число, не мельче ~2 пикселей схемы */
+  function niceStep(s) {
+    var t = 2 / s, e = Math.pow(10, Math.floor(Math.log10(t))), m = t / e;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * e;
+  }
+  function snapAny(x, s) { var st = niceStep(s); return Number((Math.round(x / st) * st).toFixed(6)); }
+  function snap(x, s) { var st = niceStep(s); return Math.max(Number((Math.round(x / st) * st).toFixed(6)), st); }
+
+  /* ручка: w — положение в мировых координатах (в единицах задачи), apply(w) возвращает новые значения полей или null */
+  function hdl(f, id, w, label, apply) {
+    if (!INTERACT) return '';
+    HANDLES.push({ id: id, w: w, apply: apply, label: label, s: f.s });
+    var p = f.p(w[0], w[1]);
+    return '<g class="handle" data-h="' + id + '" tabindex="0" role="button" aria-label="Изменить: ' + label + '" transform="translate(' + r1(p[0]) + ' ' + r1(p[1]) + ')">' +
+      '<circle class="ring" r="12"/><circle class="hit" r="18"/><circle class="knob" r="6.5"/></g>';
+  }
+  function ptsText(pts) { return pts.map(function (p) { return Number(p[0].toFixed(6)) + ' ' + Number(p[1].toFixed(6)); }).join('; '); }
+
+  function r1(n) { return Math.round(n * 10) / 10; }
+  function ptS(p) { return r1(p[0]) + ',' + r1(p[1]); }
+  function poly(pts, cls) { return '<polygon class="' + cls + '" points="' + pts.map(ptS).join(' ') + '"/>'; }
+  function pline(pts, cls) { return '<polyline class="' + cls + '" points="' + pts.map(ptS).join(' ') + '"/>'; }
+  function ln(a, b, cls) { return '<line class="' + cls + '" x1="' + r1(a[0]) + '" y1="' + r1(a[1]) + '" x2="' + r1(b[0]) + '" y2="' + r1(b[1]) + '"/>'; }
+  function dot(p, cls) { return '<circle class="dot' + (cls ? ' ' + cls : '') + '" cx="' + r1(p[0]) + '" cy="' + r1(p[1]) + '" r="3.4"/>'; }
+  function tx(p, t, anchor, cls) { return '<text class="lbl' + (cls ? ' ' + cls : '') + '" x="' + r1(p[0]) + '" y="' + r1(p[1]) + '" text-anchor="' + (anchor || 'middle') + '" dominant-baseline="middle">' + t + '</text>'; }
+  function mid(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
+  function outFrom(p, c, d) {
+    var dx = p[0] - c[0], dy = p[1] - c[1], l = Math.hypot(dx, dy) || 1;
+    return [p[0] + dx / l * d, p[1] + dy / l * d];
+  }
+  function L(sym, val, ok) { return ok && val !== undefined ? sym + ' = ' + fmt(val, 2) : sym; }
+  function ellipsePath(c, rx, ry, front) {   /* дуга эллипса: нижняя (front) или верхняя */
+    return '<path class="' + (front ? 'shape2' : 'dash') + '" d="M' + r1(c[0] - rx) + ' ' + r1(c[1]) + ' A' + r1(rx) + ' ' + r1(ry) + ' 0 0 ' + (front ? 0 : 1) + ' ' + r1(c[0] + rx) + ' ' + r1(c[1]) + '"/>';
+  }
+  function svgWrap(inner, label) { return '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="group" aria-label="Схема: ' + label + '">' + inner + '</svg>'; }
+  function rightMark(d, u, w, s) {
+    var a = [d[0] + u[0] * s, d[1] + u[1] * s], b = [a[0] + w[0] * s, a[1] + w[1] * s], c = [d[0] + w[0] * s, d[1] + w[1] * s];
+    return pline([a, b, c], 'shape2');
+  }
+
+  function drawTriangle(A, B, C, names, ok, vals) {
+    var f = fitter([A, B, C], 46);
+    var pa = f.p(A[0], A[1]), pb = f.p(B[0], B[1]), pc = f.p(C[0], C[1]);
+    var cen = [(pa[0] + pb[0] + pc[0]) / 3, (pa[1] + pb[1] + pc[1]) / 3];
+    var s = poly([pa, pb, pc], 'shape');
+    s += tx(outFrom(pa, cen, 20), names[0]) + tx(outFrom(pb, cen, 20), names[1]) + tx(outFrom(pc, cen, 20), names[2]);
+    s += tx(outFrom(mid(pb, pc), cen, 17), L('a', vals[0], ok), 'middle', 'sym');
+    s += tx(outFrom(mid(pa, pc), cen, 17), L('b', vals[1], ok), 'middle', 'sym');
+    s += tx(outFrom(mid(pa, pb), cen, 17), L('c', vals[2], ok), 'middle', 'sym');
+    return { svg: s, pa: pa, pb: pb, pc: pc, f: f };
+  }
+  function triFromSides(a, b, c) {
+    var x = (b * b + c * c - a * a) / (2 * c);
+    return [[0, 0], [c, 0], [x, Math.sqrt(Math.max(0, b * b - x * x))]];
+  }
+
+  /* оси координат для фигур на плоскости */
+  function axesFor(f, pts) {
+    var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+    var s = '';
+    if (Math.min.apply(null, xs) <= 0 && Math.max.apply(null, xs) >= 0) { var a = f.p(0, 0); s += ln([a[0], 10], [a[0], VH - 10], 'axis'); }
+    if (Math.min.apply(null, ys) <= 0 && Math.max.apply(null, ys) >= 0) { var c = f.p(0, 0); s += ln([10, c[1]], [VW - 10, c[1]], 'axis'); }
+    return s;
+  }
+
+  var FIG = [
+    {
+      id: 'circle', group: 'Плоские фигуры', name: 'Круг и окружность',
+      fields: [{ k: 'r', label: 'Радиус', sym: 'r', def: '5', kind: 'pos' }],
+      calc: function (v) { return [row('Длина окружности', 'C = 2πr', 2 * PI * v.r, 'len'), row('Площадь', 'S = πr²', PI * v.r * v.r, 'area')]; },
+      draw: function (v, ok) {
+        var r = v.r, f = fitter([[-r, -r], [r, r]], 46), c = f.p(0, 0), R = r * f.s;
+        return svgWrap('<circle class="shape" cx="' + r1(c[0]) + '" cy="' + r1(c[1]) + '" r="' + r1(R) + '"/>' + ln(c, [c[0] + R, c[1]], 'dim') + dot(c) +
+          tx([c[0] + R / 2, c[1] - 12], L('r', r, ok), 'middle', 'sym') +
+          hdl(f, 'r', [r, 0], 'радиус r', function (w) { return { r: snap(Math.hypot(w[0], w[1]), f.s) }; }), 'круг');
+      }
+    },
+    {
+      id: 'rectangle', group: 'Плоские фигуры', name: 'Прямоугольник',
+      fields: [{ k: 'a', label: 'Сторона a', sym: 'a', def: '8', kind: 'pos' }, { k: 'b', label: 'Сторона b', sym: 'b', def: '5', kind: 'pos' }],
+      calc: function (v) { return [row('Площадь', 'S = a · b', v.a * v.b, 'area'), row('Периметр', 'P = 2(a + b)', 2 * (v.a + v.b), 'len'), row('Диагональ', 'd = √(a² + b²)', Math.hypot(v.a, v.b), 'len')]; },
+      draw: function (v, ok) {
+        var f = fitter([[0, 0], [v.a, v.b]], 46);
+        var p00 = f.p(0, 0), p10 = f.p(v.a, 0), p11 = f.p(v.a, v.b), p01 = f.p(0, v.b);
+        return svgWrap(poly([p00, p10, p11, p01], 'shape') + ln(p00, p11, 'dash') + tx([(p00[0] + p10[0]) / 2, p00[1] + 15], L('a', v.a, ok), 'middle', 'sym') + tx([p10[0] + 10, (p10[1] + p11[1]) / 2], L('b', v.b, ok), 'start', 'sym') +
+          hdl(f, 'ab', [v.a, v.b], 'стороны a и b', function (w) { return { a: snap(w[0], f.s), b: snap(w[1], f.s) }; }), 'прямоугольник');
+      }
+    },
+    {
+      id: 'tri3', group: 'Плоские фигуры', name: 'Треугольник по трём сторонам',
+      fields: [{ k: 'a', label: 'Сторона a', sym: 'a', def: '13', kind: 'pos' }, { k: 'b', label: 'Сторона b', sym: 'b', def: '14', kind: 'pos' }, { k: 'c', label: 'Сторона c', sym: 'c', def: '15', kind: 'pos' }],
+      calc: function (v) { return triRows(v.a, v.b, v.c, heron(v.a, v.b, v.c)); },
+      draw: function (v, ok) {
+        var good = ok && v.a + v.b > v.c && v.a + v.c > v.b && v.b + v.c > v.a;
+        var a = v.a, b = v.b, c = v.c;
+        if (!good) { a = 13; b = 14; c = 15; }
+        var P = triFromSides(a, b, c), t = drawTriangle(P[0], P[1], P[2], ['A', 'B', 'C'], good, [v.a, v.b, v.c]), f = t.f, s = t.svg;
+        if (good) {
+          s += hdl(f, 'c', [c, 0], 'сторона c', function (w) {
+            var st = niceStep(f.s), lo = Math.abs(a - b), hi = a + b;
+            var nc = Math.min(Math.max(snap(w[0], f.s), lo + st), hi - st);
+            return nc > lo && nc < hi ? { c: nc } : null;
+          });
+          s += hdl(f, 'ab', [P[2][0], P[2][1]], 'вершина C (стороны a и b)', function (w) {
+            var na = snap(Math.hypot(w[0] - c, w[1]), f.s), nb = snap(Math.hypot(w[0], w[1]), f.s);
+            return (na + nb > c && na + c > nb && nb + c > na) ? { a: na, b: nb } : null;
+          });
+        }
+        return svgWrap(s, 'треугольник');
+      }
+    },
+    {
+      id: 'triSAS', group: 'Плоские фигуры', name: 'Треугольник: две стороны и угол',
+      fields: [{ k: 'a', label: 'Сторона a', sym: 'a', def: '7', kind: 'pos' }, { k: 'b', label: 'Сторона b', sym: 'b', def: '9', kind: 'pos' }, { k: 'g', label: 'Угол между ними, °', sym: 'γ', def: '60', kind: 'pos', lt: 180 }],
+      calc: function (v) {
+        var c = Math.sqrt(v.a * v.a + v.b * v.b - 2 * v.a * v.b * Math.cos(rad(v.g)));
+        var area = 0.5 * v.a * v.b * Math.sin(rad(v.g));
+        return [row('Третья сторона', 'c = √(a² + b² − 2ab·cos γ)', c, 'len')].concat(triRows(v.a, v.b, c, area, 'S = ½ · a · b · sin γ'));
+      },
+      draw: function (v, ok) {
+        var a = v.a, b = v.b, g = v.g;
+        var C = [0, 0], B = [a, 0], A = [b * Math.cos(rad(g)), b * Math.sin(rad(g))];
+        var c = Math.hypot(A[0] - B[0], A[1] - B[1]);
+        var t = drawTriangle(A, B, C, ['A', 'B', 'C'], ok, [a, b, c]), f = t.f;
+        var R = 26, p0 = [t.pc[0] + R, t.pc[1]];
+        var p1 = [t.pc[0] + R * Math.cos(rad(g)), t.pc[1] - R * Math.sin(rad(g))];
+        var arc = '<path class="dim" d="M' + ptS(p0).replace(',', ' ') + ' A' + R + ' ' + R + ' 0 0 0 ' + ptS(p1).replace(',', ' ') + '"/>';
+        var lp = [t.pc[0] + (R + 13) * Math.cos(rad(g / 2)), t.pc[1] - (R + 13) * Math.sin(rad(g / 2))];
+        return svgWrap(t.svg + arc + tx(lp, 'γ', 'middle', 'sym') +
+          hdl(f, 'a', [a, 0], 'сторона a', function (w) { return { a: snap(w[0], f.s) }; }) +
+          hdl(f, 'bg', [A[0], A[1]], 'сторона b и угол γ', function (w) {
+            var ng = Math.min(179, Math.max(1, Math.round(Math.atan2(w[1], w[0]) * 180 / PI)));
+            return { b: snap(Math.hypot(w[0], w[1]), f.s), g: ng };
+          }), 'треугольник с углом');
+      }
+    },
+    {
+      id: 'triBH', group: 'Плоские фигуры', name: 'Треугольник: основание и высота',
+      fields: [{ k: 'b', label: 'Основание', sym: 'b', def: '10', kind: 'pos' }, { k: 'h', label: 'Высота', sym: 'h', def: '6', kind: 'pos' }],
+      calc: function (v) { return [row('Площадь', 'S = ½ · b · h', v.b * v.h / 2, 'area')]; },
+      draw: function (v, ok) {
+        var off = 0.32 * v.b, f = fitter([[0, 0], [v.b, 0], [off, v.h]], 46);
+        var A = f.p(0, 0), B = f.p(v.b, 0), C = f.p(off, v.h), D = f.p(off, 0);
+        var s = poly([A, B, C], 'shape') + ln(C, D, 'dash') + rightMark(D, [1, 0], [0, -1], 9);
+        s += tx([(A[0] + B[0]) / 2, A[1] + 15], L('b', v.b, ok), 'middle', 'sym') + tx([D[0] + 8, (C[1] + D[1]) / 2], L('h', v.h, ok), 'start', 'sym');
+        s += hdl(f, 'b', [v.b, 0], 'основание b', function (w) { return { b: snap(w[0], f.s) }; });
+        s += hdl(f, 'h', [off, v.h], 'высота h', function (w) { return { h: snap(w[1], f.s) }; });
+        return svgWrap(s, 'треугольник с высотой');
+      }
+    },
+    {
+      id: 'trap', group: 'Плоские фигуры', name: 'Трапеция',
+      fields: [{ k: 'a', label: 'Основание a', sym: 'a', def: '6', kind: 'pos' }, { k: 'b', label: 'Основание b', sym: 'b', def: '10', kind: 'pos' }, { k: 'h', label: 'Высота', sym: 'h', def: '4', kind: 'pos' }],
+      calc: function (v) { return [row('Площадь', 'S = (a + b) / 2 · h', (v.a + v.b) / 2 * v.h, 'area'), row('Средняя линия', 'm = (a + b) / 2', (v.a + v.b) / 2, 'len')]; },
+      draw: function (v, ok) {
+        var a = v.a, b = v.b, h = v.h, x0 = (a - b) / 2;   /* верхнее основание стоит по центру */
+        var xm = (Math.max(0, x0) + Math.min(a, x0 + b)) / 2;   /* высота опускается в точке, лежащей над обоими основаниями */
+        var f = fitter([[Math.min(0, x0), 0], [Math.max(a, x0 + b), h]], 46);
+        var bl = f.p(0, 0), br = f.p(a, 0), tl = f.p(x0, h), tr = f.p(x0 + b, h), top = f.p(xm, h), foot = f.p(xm, 0);
+        var s = poly([bl, br, tr, tl], 'shape') + ln(top, foot, 'dash') + rightMark(foot, [1, 0], [0, -1], 9);
+        s += tx([(bl[0] + br[0]) / 2, bl[1] + 15], L('a', a, ok), 'middle', 'sym') + tx([(tl[0] + tr[0]) / 2, tl[1] - 14], L('b', b, ok), 'middle', 'sym') + tx([foot[0] + 8, (top[1] + foot[1]) / 2], L('h', h, ok), 'start', 'sym');
+        s += hdl(f, 'a', [a, 0], 'основание a', function (w) { return { a: snap(w[0], f.s) }; });
+        s += hdl(f, 'bh', [x0 + b, h], 'основание b и высота h', function (w) { return { b: snap(2 * w[0] - a, f.s), h: snap(w[1], f.s) }; });
+        return svgWrap(s, 'трапеция');
+      }
+    },
+    {
+      id: 'regular', group: 'Плоские фигуры', name: 'Правильный многоугольник',
+      fields: [{ k: 'n', label: 'Число сторон (3–100)', sym: 'n', def: '6', kind: 'int', min: 3, max: 100 }, { k: 'a', label: 'Длина стороны', sym: 'a', def: '4', kind: 'pos' }],
+      calc: function (v) {
+        var ap = v.a / (2 * Math.tan(PI / v.n));
+        return [
+          row('Периметр', 'P = n · a', v.n * v.a, 'len'),
+          row('Площадь', 'S = ½ · P · r', v.n * v.a * ap / 2, 'area'),
+          row('Апофема (радиус вписанной окружности)', 'r = a / (2·tg(π/n))', ap, 'len'),
+          row('Радиус описанной окружности', 'R = a / (2·sin(π/n))', v.a / (2 * Math.sin(PI / v.n)), 'len'),
+          row('Угол при вершине', '(n − 2) · 180° / n', (v.n - 2) * 180 / v.n, 'angle')
+        ];
+      },
+      draw: function (v, ok) {
+        var n = v.n, R = v.a / (2 * Math.sin(PI / n)), vs = [];
+        for (var i = 0; i < n; i++) { var t = PI / 2 + 2 * PI * i / n; vs.push([R * Math.cos(t), R * Math.sin(t)]); }
+        var f = fitter([[-R, -R], [R, R]], 44), c = f.p(0, 0);
+        var ps = vs.map(function (p) { return f.p(p[0], p[1]); });
+        var s = '<circle class="dash" cx="' + r1(c[0]) + '" cy="' + r1(c[1]) + '" r="' + r1(R * f.s) + '"/>' + poly(ps, 'shape');
+        var m = mid(ps[0], ps[1]);
+        s += ln(c, m, 'dim') + dot(c) + tx([(c[0] + m[0]) / 2 + 9, (c[1] + m[1]) / 2 + 2], 'r', 'start', 'sym');
+        s += tx(outFrom(m, c, 14), L('a', v.a, ok), 'middle', 'sym');
+        s += hdl(f, 'a', [vs[0][0], vs[0][1]], 'сторона a', function (w) { return { a: snap(2 * Math.hypot(w[0], w[1]) * Math.sin(PI / n), f.s) }; });
+        return svgWrap(s, 'правильный многоугольник');
+      }
+    },
+    {
+      id: 'polygon', group: 'Координаты', name: 'Многоугольник по вершинам',
+      fields: [{ k: 'pts', label: 'Вершины в порядке обхода: x y; x y; …', sym: '', def: '0 0; 6 0; 6 4; 3 6; 0 4', kind: 'poly' }],
+      calc: function (v) {
+        checkPolygon(v.pts);
+        var n = v.pts.length, per = 0;
+        for (var i = 0; i < n; i++) per += Math.hypot(v.pts[i][0] - v.pts[(i + 1) % n][0], v.pts[i][1] - v.pts[(i + 1) % n][1]);
+        return [row('Площадь', 'S = ½ |Σ (xᵢyᵢ₊₁ − xᵢ₊₁yᵢ)|', polygonArea(v.pts), 'area'), row('Периметр', 'P = Σ |PᵢPᵢ₊₁|', per, 'len'), trow('Число вершин', '', String(n))];
+      },
+      draw: function (v, ok) {
+        var pts = v.pts, f = fitter(pts, 40), ps = pts.map(function (p) { return f.p(p[0], p[1]); });
+        var cen = [ps.reduce(function (s, p) { return s + p[0]; }, 0) / ps.length, ps.reduce(function (s, p) { return s + p[1]; }, 0) / ps.length];
+        var s = axesFor(f, pts) + poly(ps, 'shape');
+        ps.forEach(function (p, i) { s += tx(outFrom(p, cen, 17), String(i + 1), 'middle', 'sym'); });
+        pts.forEach(function (p, i) {
+          s += hdl(f, 'p' + i, [p[0], p[1]], 'вершина ' + (i + 1), function (w) {
+            var np = pts.map(function (q) { return q.slice(); });
+            np[i] = [snapAny(w[0], f.s), snapAny(w[1], f.s)];
+            return { pts: ptsText(np) };
+          });
+        });
+        return svgWrap(s, 'многоугольник');
+      }
+    },
+    {
+      id: 'points', group: 'Координаты', name: 'Две точки',
+      fields: [{ k: 'x1', label: 'x₁', sym: 'x₁', def: '1', kind: 'any' }, { k: 'y1', label: 'y₁', sym: 'y₁', def: '2', kind: 'any' }, { k: 'x2', label: 'x₂', sym: 'x₂', def: '7', kind: 'any' }, { k: 'y2', label: 'y₂', sym: 'y₂', def: '6', kind: 'any' }],
+      calc: function (v) {
+        var rows = [row('Расстояние', 'd = √((x₂−x₁)² + (y₂−y₁)²)', Math.hypot(v.x2 - v.x1, v.y2 - v.y1), 'len'),
+          trow('Середина отрезка', 'M = ((x₁+x₂)/2; (y₁+y₂)/2)', '(' + fmt((v.x1 + v.x2) / 2) + '; ' + fmt((v.y1 + v.y2) / 2) + ')')];
+        if (v.x1 === v.x2 && v.y1 === v.y2) return rows;
+        if (v.x1 === v.x2) rows.push(trow('Прямая через точки', '', 'x = ' + fmt(v.x1)));
+        else {
+          var k = (v.y2 - v.y1) / (v.x2 - v.x1), b = v.y1 - k * v.x1;
+          rows.push(trow('Прямая через точки', 'y = kx + b', 'y = ' + fmt(k) + 'x ' + (b < 0 ? '− ' : '+ ') + fmt(Math.abs(b))));
+        }
+        return rows;
+      },
+      draw: function (v, ok) {
+        var cx = (v.x1 + v.x2) / 2, cy = (v.y1 + v.y2) / 2, sp = Math.max(Math.abs(v.x2 - v.x1), Math.abs(v.y2 - v.y1), 1);
+        var pts = [[v.x1, v.y1], [v.x2, v.y2], [cx - sp * 0.55, cy - sp * 0.4], [cx + sp * 0.55, cy + sp * 0.4]];
+        var f = fitter(pts, 40), p1 = f.p(v.x1, v.y1), p2 = f.p(v.x2, v.y2), m = mid(p1, p2);
+        var s = axesFor(f, pts);
+        if (Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) > 4) {
+          s += ln(p1, p2, 'dim') + dot(m, 'hollow') + tx([m[0] + 12, m[1] + 12], 'M', 'start', 'sym');
+          s += tx(outFrom(p1, m, 22), 'P₁', 'middle', 'sym') + tx(outFrom(p2, m, 22), 'P₂', 'middle', 'sym');
+        } else s += tx([p1[0], p1[1] - 22], 'P₁ = P₂', 'middle', 'sym');
+        s += dot(p1) + dot(p2);
+        s += hdl(f, 'p1', [v.x1, v.y1], 'точка P₁', function (w) { return { x1: snapAny(w[0], f.s), y1: snapAny(w[1], f.s) }; });
+        s += hdl(f, 'p2', [v.x2, v.y2], 'точка P₂', function (w) { return { x2: snapAny(w[0], f.s), y2: snapAny(w[1], f.s) }; });
+        return svgWrap(s, 'отрезок между двумя точками');
+      }
+    },
+    {
+      id: 'sphere', group: 'Объёмные тела', name: 'Шар',
+      fields: [{ k: 'r', label: 'Радиус', sym: 'r', def: '3', kind: 'pos' }],
+      calc: function (v) { return [row('Площадь поверхности', 'S = 4πr²', 4 * PI * v.r * v.r, 'area'), row('Объём', 'V = 4/3 · πr³', 4 / 3 * PI * Math.pow(v.r, 3), 'vol')]; },
+      draw: function (v, ok) {
+        var r = v.r, f = fitter([[-r, -r], [r, r]], 46), c = f.p(0, 0), R = r * f.s;
+        var s = '<circle class="shape" cx="' + r1(c[0]) + '" cy="' + r1(c[1]) + '" r="' + r1(R) + '"/>' + ellipsePath(c, R, R * 0.3, false) + ellipsePath(c, R, R * 0.3, true);
+        s += ln(c, [c[0] + R, c[1]], 'dim') + dot(c) + tx([c[0] + R + 12, c[1]], L('r', r, ok), 'start', 'sym');
+        s += hdl(f, 'r', [r, 0], 'радиус r', function (w) { return { r: snap(Math.hypot(w[0], w[1]), f.s) }; });
+        return svgWrap(s, 'шар');
+      }
+    },
+    {
+      id: 'cylinder', group: 'Объёмные тела', name: 'Цилиндр',
+      fields: [{ k: 'r', label: 'Радиус основания', sym: 'r', def: '3', kind: 'pos' }, { k: 'h', label: 'Высота', sym: 'h', def: '7', kind: 'pos' }],
+      calc: function (v) { return [row('Боковая поверхность', 'S₆ = 2πrh', 2 * PI * v.r * v.h, 'area'), row('Полная поверхность', 'S = 2πr(r + h)', 2 * PI * v.r * (v.r + v.h), 'area'), row('Объём', 'V = πr²h', PI * v.r * v.r * v.h, 'vol')]; },
+      draw: function (v, ok) {
+        var r = v.r, h = v.h, f = fitter([[-r, -0.3 * r], [r, h + 0.3 * r]], 40);
+        var tc = f.p(0, h), bc = f.p(0, 0), rx = r * f.s, ry = rx * 0.3;
+        var s = '<path class="shape" d="M' + r1(tc[0] - rx) + ' ' + r1(tc[1]) + ' L' + r1(bc[0] - rx) + ' ' + r1(bc[1]) + ' A' + r1(rx) + ' ' + r1(ry) + ' 0 0 0 ' + r1(bc[0] + rx) + ' ' + r1(bc[1]) + ' L' + r1(tc[0] + rx) + ' ' + r1(tc[1]) + ' Z"/>' + ellipsePath(bc, rx, ry, false) +
+          '<ellipse class="shape" cx="' + r1(tc[0]) + '" cy="' + r1(tc[1]) + '" rx="' + r1(rx) + '" ry="' + r1(ry) + '"/>';
+        s += ln(tc, [tc[0] + rx, tc[1]], 'dim') + dot(tc) + tx([tc[0] + rx + 14, tc[1]], L('r', r, ok), 'start', 'sym');
+        s += ln(tc, bc, 'dash') + dot(bc) + tx([bc[0] - 8, (tc[1] + bc[1]) / 2 + 6], L('h', h, ok), 'end', 'sym');
+        s += hdl(f, 'rh', [r, h], 'радиус r и высота h', function (w) { return { r: snap(w[0], f.s), h: snap(w[1], f.s) }; });
+        return svgWrap(s, 'цилиндр');
+      }
+    },
+    {
+      id: 'cone', group: 'Объёмные тела', name: 'Конус',
+      fields: [{ k: 'r', label: 'Радиус основания', sym: 'r', def: '3', kind: 'pos' }, { k: 'h', label: 'Высота', sym: 'h', def: '4', kind: 'pos' }],
+      calc: function (v) {
+        var l = Math.hypot(v.r, v.h);
+        return [row('Образующая', 'l = √(r² + h²)', l, 'len'), row('Боковая поверхность', 'S₆ = πrl', PI * v.r * l, 'area'), row('Полная поверхность', 'S = πr(r + l)', PI * v.r * (v.r + l), 'area'), row('Объём', 'V = ⅓ πr²h', PI * v.r * v.r * v.h / 3, 'vol')];
+      },
+      draw: function (v, ok) {
+        var r = v.r, h = v.h, f = fitter([[-r, -0.3 * r], [r, h]], 40);
+        var ap = f.p(0, h), bc = f.p(0, 0), rx = r * f.s, ry = rx * 0.3, l = Math.hypot(r, h);
+        var s = '<path class="shape" d="M' + r1(ap[0]) + ' ' + r1(ap[1]) + ' L' + r1(bc[0] - rx) + ' ' + r1(bc[1]) + ' A' + r1(rx) + ' ' + r1(ry) + ' 0 0 0 ' + r1(bc[0] + rx) + ' ' + r1(bc[1]) + ' Z"/>' + ellipsePath(bc, rx, ry, false);
+        s += ln(ap, bc, 'dash') + ln(bc, [bc[0] + rx, bc[1]], 'dim') + dot(bc) + dot(ap);
+        s += tx([bc[0] + rx / 2, bc[1] - 11], L('r', r, ok), 'middle', 'sym') + tx([ap[0] - 8, (ap[1] + bc[1]) / 2], L('h', h, ok), 'end', 'sym');
+        var ml = mid(ap, [bc[0] + rx, bc[1]]);
+        s += tx([ml[0] + 10, ml[1] - 6], L('l', l, ok), 'start', 'sym');
+        s += hdl(f, 'h', [0, h], 'высота h', function (w) { return { h: snap(w[1], f.s) }; });
+        s += hdl(f, 'r', [r, 0], 'радиус r', function (w) { return { r: snap(w[0], f.s) }; });
+        return svgWrap(s, 'конус');
+      }
+    },
+    {
+      id: 'box', group: 'Объёмные тела', name: 'Параллелепипед',
+      fields: [{ k: 'a', label: 'Длина', sym: 'a', def: '4', kind: 'pos' }, { k: 'b', label: 'Ширина', sym: 'b', def: '3', kind: 'pos' }, { k: 'c', label: 'Высота', sym: 'c', def: '5', kind: 'pos' }],
+      calc: function (v) { return [row('Объём', 'V = a · b · c', v.a * v.b * v.c, 'vol'), row('Площадь поверхности', 'S = 2(ab + bc + ac)', 2 * (v.a * v.b + v.b * v.c + v.a * v.c), 'area'), row('Диагональ', 'd = √(a² + b² + c²)', Math.sqrt(v.a * v.a + v.b * v.b + v.c * v.c), 'len')]; },
+      draw: function (v, ok) {
+        var a = v.a, b = v.b, c = v.c;   /* косая проекция: глубина b идёт вправо-вверх */
+        var f = fitter([[0, 0], [a + 0.5 * b, c + 0.32 * b]], 46);
+        var P = function (x, y, z) { return f.p(x + z * 0.5, y + z * 0.32); };
+        var f0 = [P(0, 0, 0), P(a, 0, 0), P(a, c, 0), P(0, c, 0)], b0 = [P(0, 0, b), P(a, 0, b), P(a, c, b), P(0, c, b)];
+        var s = ln(b0[0], b0[1], 'dash') + ln(b0[0], b0[3], 'dash') + ln(f0[0], b0[0], 'dash');
+        s += poly([f0[3], f0[2], b0[2], b0[3]], 'shape') + poly([f0[1], b0[1], b0[2], f0[2]], 'shape') + poly(f0, 'shape');
+        s += tx([(f0[0][0] + f0[1][0]) / 2, f0[0][1] + 15], L('a', a, ok), 'middle', 'sym') + tx([f0[0][0] - 8, (f0[0][1] + f0[3][1]) / 2], L('c', c, ok), 'end', 'sym');
+        var mb = mid(f0[1], b0[1]);
+        s += tx([mb[0] + 12, mb[1] + 10], L('b', b, ok), 'start', 'sym');
+        s += hdl(f, 'a', [a, 0], 'длина a', function (w) { return { a: snap(w[0], f.s) }; });
+        s += hdl(f, 'c', [0, c], 'высота c', function (w) { return { c: snap(w[1], f.s) }; });
+        s += hdl(f, 'b', [a + 0.5 * b, 0.32 * b], 'ширина b', function (w) {
+          return { b: snap(((w[0] - a) * 0.5 + w[1] * 0.32) / (0.25 + 0.1024), f.s) };
+        });
+        return svgWrap(s, 'параллелепипед');
+      }
+    },
+    {
+      id: 'pyramid', group: 'Объёмные тела', name: 'Правильная пирамида',
+      fields: [{ k: 'n', label: 'Число сторон основания (3–50)', sym: 'n', def: '4', kind: 'int', min: 3, max: 50 }, { k: 'a', label: 'Сторона основания', sym: 'a', def: '6', kind: 'pos' }, { k: 'h', label: 'Высота пирамиды', sym: 'h', def: '4', kind: 'pos' }],
+      calc: function (v) {
+        var ap = v.a / (2 * Math.tan(PI / v.n)), base = v.n * v.a * ap / 2, slant = Math.hypot(v.h, ap), side = v.n * v.a * slant / 2;
+        return [
+          row('Площадь основания', 'S₀ = ½ · n · a · r, r — апофема основания', base, 'area'),
+          row('Апофема боковой грани', 'l = √(h² + r²)', slant, 'len'),
+          row('Боковая поверхность', 'S₆ = ½ · n · a · l', side, 'area'),
+          row('Полная поверхность', 'S = S₀ + S₆', base + side, 'area'),
+          row('Объём', 'V = ⅓ · S₀ · h', base * v.h / 3, 'vol')
+        ];
+      },
+      draw: function (v, ok) {
+        var n = v.n, h = v.h, Rb = v.a / (2 * Math.sin(PI / n));
+        var f = fitter([[-Rb, -0.3 * Rb], [Rb, h]], 40), rx = Rb * f.s, ry = rx * 0.3, bc = f.p(0, 0), ap = f.p(0, h);
+        var th0 = -PI / 2, vs = [], back = [];
+        for (var i = 0; i < n; i++) {
+          var t = th0 + 2 * PI * i / n;
+          vs.push([bc[0] + rx * Math.cos(t), bc[1] - ry * Math.sin(t)]);
+          back.push(Math.sin(t) > 1e-9);
+        }
+        var s = '<ellipse class="axis" fill="none" cx="' + r1(bc[0]) + '" cy="' + r1(bc[1]) + '" rx="' + r1(rx) + '" ry="' + r1(ry) + '"/>';
+        for (var j = 0; j < n; j++) if (back[j]) s += ln(ap, vs[j], 'dash');
+        for (var k = 0; k < n; k++) {
+          var t2 = th0 + 2 * PI * (k + 0.5) / n;
+          s += ln(vs[k], vs[(k + 1) % n], Math.sin(t2) > 1e-9 ? 'dash' : 'shape2');
+        }
+        for (var m = 0; m < n; m++) if (!back[m]) s += ln(ap, vs[m], 'shape2');
+        s += ln(ap, bc, 'dash') + dot(ap) + dot(bc);
+        s += tx([ap[0] + 9, (ap[1] + bc[1]) / 2], L('h', h, ok), 'start', 'sym');
+        var e0 = mid(vs[0], vs[1 % n]), eo = outFrom(e0, bc, 14);
+        s += tx([eo[0] + 4, eo[1] + 2], L('a', v.a, ok), 'start', 'sym');
+        s += hdl(f, 'h', [0, h], 'высота h', function (w) { return { h: snap(w[1], f.s) }; });
+        s += hdl(f, 'a', [Rb, 0], 'сторона основания a', function (w) { return { a: snap(2 * Math.abs(w[0]) * Math.sin(PI / n), f.s) }; });
+        return svgWrap(s, 'пирамида');
+      }
+    }
+  ];
+
+  /* ================================================================== АЛГЕБРА */
+  /* ---- дроби, индексы, форматирование ---- */
+  function toFrac(x, maxDen) {
+    if (!Number.isFinite(x) || Math.abs(x) > 1e12) return null;
+    if (Number.isInteger(x)) return [x, 1];
+    var sign = x < 0 ? -1 : 1, a = Math.abs(x), b = a, h1 = 1, h0 = 0, k1 = 0, k0 = 1;
+    for (var i = 0; i < 40; i++) {
+      var ai = Math.floor(b), h2 = ai * h1 + h0, k2 = ai * k1 + k0;
+      if (k2 > maxDen) return null;
+      h0 = h1; h1 = h2; k0 = k1; k1 = k2;
+      if (Math.abs(a - h1 / k1) <= 1e-9 * Math.max(1, a)) return [sign * h1, k1];
+      var fr = b - ai;
+      if (fr < 1e-12) return null;
+      b = 1 / fr;
+    }
+    return null;
+  }
+  function snapNum(x) {
+    var f = toFrac(x, 1000);
+    return f && Math.abs(x - f[0] / f[1]) <= 1e-12 * Math.max(1, Math.abs(x)) ? f[0] / f[1] : x;
+  }
+  function cleanN(x) { return Number(x.toFixed(6)); }
+  var SUPD = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  var SUBD = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉' };
+  function sup(n) { return String(n).replace(/\d/g, function (d) { return SUPD[d]; }); }
+  function sub(n) { return String(n).replace(/\d/g, function (d) { return SUBD[d]; }); }
+  function signed(n) { return String(n).replace('-', '−'); }
+  function fmtN(x) {
+    if (!Number.isFinite(x)) throw new CalcError('Число слишком велико для вычисления.');
+    var ax = Math.abs(x);
+    if (ax !== 0 && (ax >= 1e15 || ax < 1e-6)) {
+      return x.toExponential(6).replace(/\.?0+e/, 'e').replace('.', ',').replace(/e([+-]?)(\d+)/, function (m, s, d) { return '·10^' + (s === '-' ? '−' : '') + d; });
+    }
+    var s = x.toFixed(6).replace(/\.?0+$/, '');
+    if (s === '-0' || s === '') s = '0';
+    return s.replace('.', ',');
+  }
+  function sn(x) { return signed(fmtN(x)); }                 /* число для текста: с настоящим минусом */
+  function pn(x) { return x < 0 ? '(' + sn(x) + ')' : sn(x); }   /* в скобках, если отрицательное */
+  function terminating(q) { while (q % 2 === 0) q /= 2; while (q % 5 === 0) q /= 5; return q === 1; }
+  function numStr(a) {                                        /* a ≥ 0: целое, десятичная запись или дробь p/q */
+    var f = toFrac(a, 1000);
+    if (f && f[1] === 1) return String(f[0]);
+    if (f && !terminating(f[1])) return f[0] + '/' + f[1];
+    return fmtN(a);
+  }
+  function groupDigits(s) { return String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+
+  /* ---- разбор выражений с одной переменной x ---- */
+  var FUNCS = { sqrt: Math.sqrt, cbrt: Math.cbrt, abs: Math.abs, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan, ln: Math.log, lg: Math.log10, exp: Math.exp, floor: Math.floor, ceil: Math.ceil, round: Math.round };
+  var CONSTS = { pi: Math.PI, e: Math.E };
+  var NAMES = Object.keys(FUNCS).concat(Object.keys(CONSTS), ['x']).sort(function (a, b) { return b.length - a.length; });
+
+  function normalizeExpr(src) {
+    return String(src).toLowerCase()
+      .replace(/[−–—]/g, '-').replace(/[×·∙⋅]/g, '*').replace(/÷/g, '/')
+      .replace(/π/g, 'pi').replace(/²/g, '^2').replace(/³/g, '^3').replace(/√\s*(?=\()/g, 'sqrt').replace(/√\s*(\d+(?:[.,]\d+)?|x|х)/g, 'sqrt($1)')
+      .replace(/х/g, 'x').replace(/,/g, '.').trim();
+  }
+  function tokenize(src) {
+    var s = normalizeExpr(src), i = 0, toks = [], m;
+    while (i < s.length) {
+      var c = s.charAt(i);
+      if (c === ' ') { i++; continue; }
+      if ((m = /^(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/.exec(s.slice(i)))) { toks.push({ t: 'num', v: parseFloat(m[0]), s: m[0] }); i += m[0].length; continue; }
+      if (/[a-zа-я]/.test(c)) {
+        var name = NAMES.filter(function (n) { return s.substr(i, n.length) === n; })[0];
+        if (!name) {
+          var bad = /^[a-zа-я]+/.exec(s.slice(i))[0];
+          throw new CalcError('Неизвестное обозначение «' + bad + '». Допустимы переменная x, числа π и e, функции sqrt, abs, sin, cos, tan, ln, lg, exp и др.');
+        }
+        if (name === 'x') toks.push({ t: 'x', s: 'x' });
+        else if (CONSTS.hasOwnProperty(name)) toks.push({ t: 'const', v: CONSTS[name], s: name });
+        else toks.push({ t: 'fn', name: name, s: name });
+        i += name.length; continue;
+      }
+      if ('+-*/^()!'.indexOf(c) >= 0) { toks.push({ t: 'op', v: c, s: c }); i++; continue; }
+      throw new CalcError('Недопустимый символ «' + c + '».');
+    }
+    var out = [];
+    toks.forEach(function (tk) {
+      var prev = out[out.length - 1];
+      if (prev) {
+        var end = prev.t === 'num' || prev.t === 'x' || prev.t === 'const' || (prev.t === 'op' && (prev.v === ')' || prev.v === '!'));
+        var start = tk.t === 'x' || tk.t === 'const' || tk.t === 'fn' || (tk.t === 'op' && tk.v === '(') || (tk.t === 'num' && prev.t === 'op' && (prev.v === ')' || prev.v === '!'));
+        if (end && start) out.push({ t: 'op', v: '*', s: '*' });   /* 2x, 3(x+1), (x+1)(x−1), 2sin(x) */
+      }
+      out.push(tk);
+    });
+    return out;
+  }
+  function parseTokens(toks) {
+    var pos = 0;
+    function isOp(v) { var t = toks[pos]; return !!t && t.t === 'op' && t.v === v; }
+    function expr() { var n = term(); while (isOp('+') || isOp('-')) { var op = toks[pos++].v; n = { t: 'bin', op: op, l: n, r: term() }; } return n; }
+    function term() { var n = unary(); while (isOp('*') || isOp('/')) { var op = toks[pos++].v; n = { t: 'bin', op: op, l: n, r: unary() }; } return n; }
+    function unary() {
+      if (isOp('-')) { pos++; return { t: 'neg', e: unary() }; }
+      if (isOp('+')) { pos++; return unary(); }
+      return power();
+    }
+    function power() { var b = postfix(); if (isOp('^')) { pos++; return { t: 'bin', op: '^', l: b, r: unary() }; } return b; }
+    function postfix() { var n = primary(); while (isOp('!')) { pos++; n = { t: 'fact', e: n }; } return n; }
+    function primary() {
+      var t = toks[pos];
+      if (!t) throw new CalcError('Выражение оборвано: после последнего знака ждём число, x или скобку.');
+      if (t.t === 'num') { pos++; return { t: 'num', v: t.v }; }
+      if (t.t === 'const') { pos++; return { t: 'num', v: t.v }; }
+      if (t.t === 'x') { pos++; return { t: 'x' }; }
+      if (t.t === 'fn') {
+        pos++;
+        if (!isOp('(')) throw new CalcError('После «' + t.name + '» нужны скобки: ' + t.name + '(…).');
+        pos++;
+        var e = expr();
+        if (!isOp(')')) throw new CalcError('Не хватает закрывающей скобки «)».');
+        pos++;
+        return { t: 'fn', name: t.name, e: e };
+      }
+      if (t.t === 'op' && t.v === '(') {
+        pos++;
+        var e2 = expr();
+        if (!isOp(')')) throw new CalcError('Не хватает закрывающей скобки «)».');
+        pos++;
+        return e2;
+      }
+      if (t.t === 'op' && t.v === ')') throw new CalcError('Лишняя закрывающая скобка «)».');
+      throw new CalcError('Здесь ждём число, x или скобку, а стоит «' + t.s + '».');
+    }
+    var tree = expr();
+    if (pos < toks.length) {
+      var t = toks[pos];
+      if (t.t === 'num' || t.t === 'x' || t.t === 'const') throw new CalcError('Между «' + (toks[pos - 1].s) + '» и «' + t.s + '» пропущен знак действия.');
+      throw new CalcError('Лишний символ «' + t.s + '».');
+    }
+    return tree;
+  }
+  function factorialNum(v) {
+    if (!Number.isInteger(v) || v < 0 || v > 170) return NaN;
+    var r = 1;
+    for (var i = 2; i <= v; i++) r *= i;
+    return r;
+  }
+  function evalAst(n, x) {
+    switch (n.t) {
+      case 'num': return n.v;
+      case 'x': return x;
+      case 'neg': return -evalAst(n.e, x);
+      case 'fact': return factorialNum(evalAst(n.e, x));
+      case 'fn': return FUNCS[n.name](evalAst(n.e, x));
+      default:
+        var a = evalAst(n.l, x), b = evalAst(n.r, x);
+        if (n.op === '+') return a + b;
+        if (n.op === '-') return a - b;
+        if (n.op === '*') return a * b;
+        if (n.op === '/') return a / b;
+        return Math.pow(a, b);
+    }
+  }
+  function astHasX(n) {
+    if (n.t === 'x') return true;
+    if (n.t === 'num') return false;
+    if (n.t === 'bin') return astHasX(n.l) || astHasX(n.r);
+    return astHasX(n.e);
+  }
+  function compileExpr(src) {
+    var toks = tokenize(src);
+    if (!toks.length) throw new CalcError('Введите выражение.');
+    var ast = parseTokens(toks);
+    return { ast: ast, hasX: astHasX(ast), f: function (x) { return evalAst(ast, x); } };
+  }
+  function evalNumber(src) {   /* число из текста: 3/4, −2, sqrt(2), 0,75 */
+    var c = compileExpr(src);
+    if (c.hasX) throw new CalcError('В ответе не должно быть x.');
+    var v = c.f(0);
+    if (!Number.isFinite(v)) throw new CalcError('Выражение не определено.');
+    return v;
+  }
+  function splitEq(src) {
+    var parts = String(src).split('=');
+    if (parts.length > 2) throw new CalcError('В уравнении должен быть ровно один знак «=».');
+    return parts.length === 1 ? { l: parts[0], r: '0' } : { l: parts[0], r: parts[1] };
+  }
+
+  /* ---- многочлены: коэффициенты по возрастанию степеней ---- */
+  function padd(a, b) { var r = [], n = Math.max(a.length, b.length); for (var i = 0; i < n; i++) r.push((a[i] || 0) + (b[i] || 0)); return r; }
+  function pscale(a, k) { return a.map(function (c) { return c * k; }); }
+  function pmul(a, b) { var r = []; for (var i = 0; i < a.length + b.length - 1; i++) r.push(0); a.forEach(function (x, i) { b.forEach(function (y, j) { r[i + j] += x * y; }); }); return r; }
+  function pTrim(a) {
+    var m = Math.max.apply(null, a.map(Math.abs).concat([1e-300])), r = a.map(function (c) { var rc = Math.round(c); return Math.abs(c - rc) < 1e-9 * Math.max(1, Math.abs(c)) ? rc : (Math.abs(c) < 1e-12 * m ? 0 : c); });
+    while (r.length > 1 && r[r.length - 1] === 0) r.pop();
+    return r;
+  }
+  function polyOf(n) {
+    var notPoly = 'Это не многочлен от x. Для таких выражений есть режимы «Значение выражения» и «Уравнение с x».';
+    switch (n.t) {
+      case 'num': return [n.v];
+      case 'x': return [0, 1];
+      case 'neg': return pscale(polyOf(n.e), -1);
+      case 'fn': case 'fact':
+        if (polyOf(n.e).length !== 1) throw new CalcError(notPoly);
+        return [evalAst(n, 0)];
+      default:
+        if (n.op === '+') return padd(polyOf(n.l), polyOf(n.r));
+        if (n.op === '-') return padd(polyOf(n.l), pscale(polyOf(n.r), -1));
+        if (n.op === '*') return pmul(polyOf(n.l), polyOf(n.r));
+        if (n.op === '/') {
+          var d = polyOf(n.r);
+          if (d.length !== 1) throw new CalcError(notPoly);
+          if (d[0] === 0) throw new CalcError('Деление на ноль.');
+          return pscale(polyOf(n.l), 1 / d[0]);
+        }
+        var e = polyOf(n.r);
+        if (e.length !== 1 || !Number.isInteger(e[0]) || e[0] < 0 || e[0] > 60) throw new CalcError('Степень многочлена должна быть целым числом от 0 до 60.');
+        var base = polyOf(n.l), res = [1];
+        for (var i = 0; i < e[0]; i++) res = pmul(res, base);
+        return res;
+    }
+  }
+  function polyStr(p) {
+    var parts = [];
+    for (var i = p.length - 1; i >= 0; i--) {
+      var c = p[i];
+      if (Math.abs(c) < 1e-12) continue;
+      var cs = numStr(Math.abs(c)), xs = i === 0 ? '' : (i === 1 ? 'x' : 'x' + sup(i)), body;
+      if (i === 0) body = cs;
+      else if (cs === '1') body = xs;
+      else body = (cs.indexOf('/') >= 0 ? '(' + cs + ')' : cs) + xs;
+      parts.push([c < 0 ? '−' : '+', body]);
+    }
+    if (!parts.length) return '0';
+    return parts.map(function (t, k) { return k === 0 ? (t[0] === '−' ? '−' : '') + t[1] : ' ' + t[0] + ' ' + t[1]; }).join('');
+  }
+  function polyDeriv(p) { var r = []; for (var i = 1; i < p.length; i++) r.push(p[i] * i); return r.length ? r : [0]; }
+  function polyInteg(p) { var r = [0]; p.forEach(function (c, i) { r.push(c / (i + 1)); }); return r; }
+  function polyEval(p, x) { var r = 0; for (var i = p.length - 1; i >= 0; i--) r = r * x + p[i]; return r; }
+
+  /* ---- рациональные корни и разложение (точная арифметика на BigInt) ---- */
+  function bigAbs(a) { return a < 0n ? -a : a; }
+  function bigGcd(a, b) { a = bigAbs(a); b = bigAbs(b); while (b) { var t = a % b; a = b; b = t; } return a; }
+  function numGcd(a, b) { while (b) { var t = a % b; a = b; b = t; } return a; }
+  function divisorsOf(n) {
+    if (n > 1000000000000n) return null;
+    var m = Number(n), fs = [], p;
+    for (p = 2; p * p <= m; p++) {
+      if (m % p === 0) { var e = 0; while (m % p === 0) { m /= p; e++; } fs.push([p, e]); }
+    }
+    if (m > 1) fs.push([m, 1]);
+    var ds = [1];
+    fs.forEach(function (f) { var base = ds.slice(), pw = 1; for (var k = 1; k <= f[1]; k++) { pw *= f[0]; base.forEach(function (d) { ds.push(d * pw); }); } });
+    return ds;
+  }
+  function intPoly(pf) {
+    var den = 1n, fr = [], i;
+    for (i = 0; i < pf.length; i++) {
+      var f = toFrac(pf[i], 1000);
+      if (!f || Math.abs(f[0]) > 1e12) return null;
+      fr.push(f);
+      var q = BigInt(f[1]);
+      den = den / bigGcd(den, q) * q;
+    }
+    if (den > 1000000000n) return null;
+    return { ic: fr.map(function (f) { return BigInt(f[0]) * (den / BigInt(f[1])); }), den: den };
+  }
+  function evalHomog(a, p, q) {   /* q^n · P(p/q), точно */
+    var n = a.length - 1, qp = [1n], i, v = 0n, pp = 1n;
+    for (i = 1; i <= n; i++) qp.push(qp[i - 1] * q);
+    for (i = 0; i <= n; i++) { v += a[i] * pp * qp[n - i]; pp *= p; }
+    return v;
+  }
+  function findRationalRoot(a) {
+    var dp = divisorsOf(bigAbs(a[0])), dq = divisorsOf(bigAbs(a[a.length - 1]));
+    if (!dp || !dq || dp.length * dq.length > 400000) return null;
+    for (var i = 0; i < dq.length; i++) {
+      for (var j = 0; j < dp.length; j++) {
+        if (numGcd(dp[j], dq[i]) !== 1) continue;
+        if (evalHomog(a, BigInt(dp[j]), BigInt(dq[i])) === 0n) return [BigInt(dp[j]), BigInt(dq[i])];
+        if (evalHomog(a, BigInt(-dp[j]), BigInt(dq[i])) === 0n) return [BigInt(-dp[j]), BigInt(dq[i])];
+      }
+    }
+    return null;
+  }
+  function deflate(a, p, q) {   /* деление на (q·x − p) без остатка */
+    var n = a.length - 1, b = new Array(n);
+    if (a[n] % q !== 0n) return null;
+    b[n - 1] = a[n] / q;
+    for (var j = n - 1; j >= 1; j--) {
+      var t = a[j] + p * b[j];
+      if (t % q !== 0n) return null;
+      b[j - 1] = t / q;
+    }
+    return a[0] + p * b[0] === 0n ? b : null;
+  }
+  function factorRational(pf) {
+    var ip = intPoly(pf);
+    if (!ip || ip.ic.length > 40) return null;
+    var a = ip.ic.slice(), zero = 0, lin = [];
+    if (a.every(function (c) { return c === 0n; })) return null;
+    while (a.length > 1 && a[0] === 0n) { a.shift(); zero++; }
+    while (a.length > 1) {
+      var r = findRationalRoot(a);
+      if (!r) break;
+      var b = deflate(a, r[0], r[1]);
+      if (!b) break;
+      a = b;
+      var ex = lin.filter(function (l) { return l.p === r[0] && l.q === r[1]; })[0];
+      if (ex) ex.m++; else lin.push({ p: r[0], q: r[1], m: 1 });
+    }
+    var g = 0n;
+    a.forEach(function (c) { g = bigGcd(g, c); });
+    var s = a[a.length - 1] < 0n ? -1n : 1n;
+    var cnum = s * g, cden = ip.den, gg = bigGcd(cnum, cden);
+    cnum /= gg; cden /= gg;
+    lin.sort(function (x, y) { return Number(x.p) / Number(x.q) - Number(y.p) / Number(y.q); });
+    return { cnum: cnum, cden: cden, zero: zero, lin: lin, rest: a.map(function (c) { return c * s / g; }) };
+  }
+  function factorStr(F) {
+    var c = '';
+    if (F.cnum === -1n && F.cden === 1n) c = '−';
+    else if (!(F.cnum === 1n && F.cden === 1n)) c = F.cden === 1n ? signed(F.cnum) : '(' + signed(F.cnum) + '/' + F.cden + ')';
+    var body = '';
+    if (F.zero) body += 'x' + (F.zero > 1 ? sup(F.zero) : '');
+    F.lin.forEach(function (l) {
+      body += '(' + (l.q === 1n ? '' : String(l.q)) + 'x' + (l.p > 0n ? ' − ' + String(l.p) : ' + ' + String(-l.p)) + ')' + (l.m > 1 ? sup(l.m) : '');
+    });
+    if (F.rest.length > 1) body += '(' + polyStr(F.rest.map(Number)) + ')';
+    return body ? c + body : '';
+  }
+
+  /* ---- корни многочлена: рациональные точно, остальные численно ---- */
+  function cMul(a, b) { return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]]; }
+  function cDiv(a, b) { var d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; }
+  function durandKerner(c) {
+    var n = c.length - 1, a = c.map(function (v) { return v / c[n]; }), r0 = Math.max(0.2, Math.pow(Math.abs(a[0]) || 1, 1 / n)), z = [], k, it;
+    for (k = 0; k < n; k++) { var ang = 2 * PI * k / n + 0.4; z.push([r0 * Math.cos(ang), r0 * Math.sin(ang)]); }
+    for (it = 0; it < 2000; it++) {
+      var maxd = 0;
+      for (var i = 0; i < n; i++) {
+        var pv = [1, 0];
+        for (var m = n - 1; m >= 0; m--) { pv = cMul(pv, z[i]); pv[0] += a[m]; }
+        var den = [1, 0];
+        for (var j = 0; j < n; j++) if (j !== i) den = cMul(den, [z[i][0] - z[j][0], z[i][1] - z[j][1]]);
+        var d = cDiv(pv, den);
+        z[i] = [z[i][0] - d[0], z[i][1] - d[1]];
+        maxd = Math.max(maxd, Math.hypot(d[0], d[1]));
+      }
+      if (maxd < 1e-14 * Math.max(1, r0)) break;
+    }
+    return z;
+  }
+  function polyRoots(pf) {   /* → { real: [{x, m}], cx: [{re, im}] } */
+    var real = [], cx = [], skipped = false, F = factorRational(pf), rest;
+    if (pf.length < 2) return { real: real, cx: cx, skipped: false };
+    if (F) {
+      if (F.zero) real.push({ x: 0, m: F.zero });
+      F.lin.forEach(function (l) { real.push({ x: Number(l.p) / Number(l.q), m: l.m }); });
+      rest = F.rest.map(Number);
+    } else {
+      rest = pf.slice();
+      var z0 = 0;
+      while (rest.length > 1 && Math.abs(rest[0]) < 1e-12) { rest.shift(); z0++; }
+      if (z0) real.push({ x: 0, m: z0 });
+    }
+    var rd = rest.length - 1;
+    if (rd === 1) real.push({ x: -rest[0] / rest[1], m: 1 });
+    else if (rd === 2) {
+      var A = rest[2], B = rest[1], C = rest[0], D = B * B - 4 * A * C;
+      if (D > 0) {
+        var q = -0.5 * (B + (B >= 0 ? 1 : -1) * Math.sqrt(D)), x1 = q / A, x2 = C / q;
+        real.push({ x: Math.min(x1, x2), m: 1 }, { x: Math.max(x1, x2), m: 1 });
+      } else if (D === 0) real.push({ x: -B / (2 * A), m: 2 });
+      else cx.push({ re: -B / (2 * A), im: Math.sqrt(-D) / (2 * Math.abs(A)) });
+    } else if (rd > 12) {
+      skipped = true;
+    } else if (rd >= 3) {
+      var zs = durandKerner(rest), used = [];
+      zs.forEach(function (z, i) {
+        if (used[i]) return;
+        var grp = [z];
+        used[i] = true;
+        for (var j = i + 1; j < zs.length; j++) {
+          if (!used[j] && Math.hypot(zs[j][0] - z[0], zs[j][1] - z[1]) < 1e-4 * Math.max(1, Math.hypot(z[0], z[1]))) { grp.push(zs[j]); used[j] = true; }
+        }
+        var re = grp.reduce(function (s, g) { return s + g[0]; }, 0) / grp.length, im = grp.reduce(function (s, g) { return s + g[1]; }, 0) / grp.length;
+        if (Math.abs(im) <= 1e-5 * Math.max(1, Math.abs(re))) real.push({ x: snapNum(re), m: grp.length });
+        else if (im > 0) cx.push({ re: re, im: im });
+      });
+    }
+    real.sort(function (a, b) { return a.x - b.x; });
+    return { real: real, cx: cx, skipped: skipped };
+  }
+
+  /* ---- численный поиск корней уравнения g(x) = 0 на отрезке ---- */
+  function bisect(g, a, b) {
+    var ga = g(a);
+    for (var k = 0; k < 200; k++) {
+      var m = (a + b) / 2, gm = g(m);
+      if (gm === 0) return m;
+      if ((ga < 0) === (gm < 0)) { a = m; ga = gm; } else b = m;
+      if (Math.abs(b - a) < 1e-15 * Math.max(1, Math.abs(a))) break;
+    }
+    return (a + b) / 2;
+  }
+  function findRoots(g, lo, hi) {
+    var N = 4000, xs = [], gs = [], roots = [], i;
+    function safe(x) { try { return g(x); } catch (e) { return NaN; } }
+    for (i = 0; i <= N; i++) { var x = i === N ? hi : lo + (hi - lo) * i / N; xs.push(x); gs.push(safe(x)); }
+    function add(r) {
+      r = snapNum(r);
+      if (!roots.some(function (q) { return Math.abs(q - r) < 1e-7 * Math.max(1, Math.abs(r)); })) roots.push(r);
+    }
+    for (i = 0; i < N; i++) {
+      var a = gs[i], b = gs[i + 1];
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+      if (a === 0) { add(xs[i]); continue; }
+      if (a * b < 0) {
+        var r = bisect(safe, xs[i], xs[i + 1]), gr = safe(r);
+        if (Number.isFinite(gr) && (Math.abs(gr) <= 1e-6 * Math.max(Math.abs(a), Math.abs(b)) || Math.abs(gr) <= 1e-9)) add(r);   /* полюс и разрыв корнями не считаем */
+      }
+    }
+    if (gs[N] === 0) add(xs[N]);
+    for (i = 1; i < N; i++) {   /* корни чётной кратности: график лишь касается оси */
+      var p = gs[i - 1], c = gs[i], q = gs[i + 1];
+      if (!Number.isFinite(p) || !Number.isFinite(c) || !Number.isFinite(q)) continue;
+      if (c === 0 || p * c < 0 || c * q < 0) continue;
+      if (Math.abs(c) <= Math.abs(p) && Math.abs(c) <= Math.abs(q)) {
+        var l = xs[i - 1], rr = xs[i + 1], gold = 0.6180339887498949, m1, m2, f1, f2;
+        for (var it = 0; it < 120; it++) {
+          m1 = rr - gold * (rr - l); m2 = l + gold * (rr - l);
+          f1 = Math.abs(safe(m1)); f2 = Math.abs(safe(m2));
+          if (f1 < f2) rr = m2; else l = m1;
+        }
+        var mm = (l + rr) / 2;
+        if (Math.abs(safe(mm)) <= 1e-10 * Math.max(1, Math.abs(p), Math.abs(q))) add(mm);
+      }
+    }
+    return roots.sort(function (u, v) { return u - v; });
+  }
+
+  /* ---- квадратный корень из целого: n = k²·m ---- */
+  function sqrtSimplify(n) {
+    var k = 1, m = n;
+    for (var p = 2; p * p <= m; p++) { while (m % (p * p) === 0) { m /= p * p; k *= p; } }
+    return [k, m];
+  }
+  function exactQuad(a, b, c) {   /* корни в виде (B ± k√m)/d, если коэффициенты целые и D не полный квадрат */
+    if (![a, b, c].every(function (v) { return Number.isInteger(v) && Math.abs(v) <= 1e6; })) return null;
+    var D = b * b - 4 * a * c;
+    if (D <= 0 || Number.isInteger(Math.sqrt(D))) return null;
+    var km = sqrtSimplify(D), k = km[0], m = km[1], B = -b, den = 2 * a;
+    if (den < 0) { B = -B; den = -den; }
+    var g = numGcd(numGcd(Math.abs(B), k), den);
+    B /= g; k /= g; den /= g;
+    var rad = (k === 1 ? '' : k) + '√' + m, top = (B === 0 ? '± ' : signed(B) + ' ± ') + rad;
+    return den === 1 ? top : (B === 0 ? top + ' / ' + den : '(' + top + ') / ' + den);
+  }
+  function solveSystem(a1, b1, c1, a2, b2, c2) {
+    var det = a1 * b2 - a2 * b1, dx = c1 * b2 - c2 * b1, dy = a1 * c2 - a2 * c1;
+    var sc = Math.max(Math.abs(a1 * b2), Math.abs(a2 * b1), 1e-300), z = function (v, s) { return Math.abs(v) <= 1e-12 * s; };
+    if (!z(det, sc)) return { type: 'one', det: det, dx: dx, dy: dy, x: snapNum(dx / det), y: snapNum(dy / det) };
+    var z1 = a1 === 0 && b1 === 0, z2 = a2 === 0 && b2 === 0;
+    if ((z1 && c1 !== 0) || (z2 && c2 !== 0)) return { type: 'none', det: det, dx: dx, dy: dy };
+    if (z1 && z2) return { type: 'all', det: det, dx: dx, dy: dy };
+    if (z1 || z2) return { type: 'line', det: det, dx: dx, dy: dy };
+    var sx = Math.max(Math.abs(c1 * b2), Math.abs(c2 * b1), 1e-300), sy = Math.max(Math.abs(a1 * c2), Math.abs(a2 * c1), 1e-300);
+    return z(dx, sx) && z(dy, sy) ? { type: 'line', det: det, dx: dx, dy: dy } : { type: 'none', det: det, dx: dx, dy: dy };
+  }
+  function factorizeInt(n) {   /* n ≤ 1e12 → [[p, e], …] */
+    var fs = [], m = n;
+    for (var p = 2; p * p <= m; p++) {
+      if (m % p === 0) { var e = 0; while (m % p === 0) { m /= p; e++; } fs.push([p, e]); }
+    }
+    if (m > 1) fs.push([m, 1]);
+    return fs;
+  }
+  function factorIntStr(n) {
+    if (n === 1) return '1';
+    return factorizeInt(n).map(function (f) { return f[1] === 1 ? String(f[0]) : f[0] + sup(f[1]); }).join(' · ');
+  }
+  function bigFact(n) { var r = 1n; for (var i = 2n; i <= BigInt(n); i++) r *= i; return r; }
+
+  /* ---- графики функций: оси, сетка, кривые, точки ---- */
+  var PADP = { l: 38, r: 12, t: 12, b: 22 };
+  function plotFit(xmin, xmax, ymin, ymax) {
+    if (FROZEN) { LASTFIT = FROZEN; return FROZEN; }
+    if (![xmin, xmax, ymin, ymax].every(function (v) { return Number.isFinite(v) && Math.abs(v) < 1e12; })) throw new CalcError('График не строится: числа слишком велики.');
+    if (!(xmax - xmin > 1e-9)) { xmin -= 1; xmax += 1; }
+    if (!(ymax - ymin > 1e-9)) { ymin -= 1; ymax += 1; }
+    var W = VW - PADP.l - PADP.r, H = VH - PADP.t - PADP.b, sx = W / (xmax - xmin), sy = H / (ymax - ymin);
+    var f = {
+      plot: true, xmin: xmin, xmax: xmax, ymin: ymin, ymax: ymax, sx: sx, sy: sy, s: Math.min(sx, sy),
+      p: function (x, y) { return [PADP.l + (x - xmin) * sx, PADP.t + (ymax - y) * sy]; },
+      inv: function (px, py) { return [xmin + (px - PADP.l) / sx, ymax - (py - PADP.t) / sy]; }
+    };
+    LASTFIT = f;
+    return f;
+  }
+  function niceTickStep(range, target) {
+    var raw = range / target, e = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / e;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * e;
+  }
+  function tickLabel(v) { return String(Number(v.toFixed(10))).replace('.', ',').replace('-', '−'); }
+  function plotBase(f, opt) {
+    opt = opt || {};
+    var x0 = PADP.l, y0 = PADP.t, W = VW - PADP.l - PADP.r, H = VH - PADP.t - PADP.b, k, v, px, py;
+    var s = '<defs><clipPath id="pclip"><rect x="' + x0 + '" y="' + y0 + '" width="' + W + '" height="' + H + '"/></clipPath></defs>';
+    var stepX = opt.intX ? 1 : niceTickStep(f.xmax - f.xmin, 6), stepY = niceTickStep(f.ymax - f.ymin, 5);
+    for (k = Math.ceil(f.xmin / stepX - 1e-9); k * stepX <= f.xmax + 1e-9 && k < 4000; k++) {
+      v = k * stepX;
+      if (opt.intX && (v < 1 || v > opt.maxX)) continue;
+      px = f.p(v, 0)[0];
+      s += ln([px, y0], [px, y0 + H], 'pgrid') + tx([px, y0 + H + 11], tickLabel(v), 'middle', 'tick');
+    }
+    for (k = Math.ceil(f.ymin / stepY - 1e-9); k * stepY <= f.ymax + 1e-9 && k < 4000; k++) {
+      v = k * stepY; py = f.p(0, v)[1];
+      s += ln([x0, py], [x0 + W, py], 'pgrid') + tx([x0 - 4, py], tickLabel(v), 'end', 'tick');
+    }
+    if (f.xmin <= 0 && f.xmax >= 0) { px = f.p(0, 0)[0]; s += ln([px, y0], [px, y0 + H], 'paxis'); }
+    if (f.ymin <= 0 && f.ymax >= 0) { py = f.p(0, 0)[1]; s += ln([x0, py], [x0 + W, py], 'paxis'); }
+    return s + '<rect class="pframe" x="' + x0 + '" y="' + y0 + '" width="' + W + '" height="' + H + '"/>';
+  }
+  function curve(f, fn, cls) {
+    var N = 280, d = '', pen = false, prev = null;
+    for (var i = 0; i <= N; i++) {
+      var x = f.xmin + (f.xmax - f.xmin) * i / N, y;
+      try { y = fn(x); } catch (e) { y = NaN; }
+      if (!Number.isFinite(y) || Math.abs(y) > 1e9) { pen = false; prev = null; continue; }
+      var p = f.p(x, y), sy = clamp(p[1], -4000, 4000);
+      if (prev && Math.abs(sy - prev.sy) > VH * 1.2 && y * prev.y < 0) pen = false;   /* вертикальная асимптота */
+      d += (pen ? 'L' : 'M') + r1(p[0]) + ' ' + r1(sy);
+      pen = true; prev = { y: y, sy: sy };
+    }
+    return d ? '<g clip-path="url(#pclip)"><path class="' + cls + '" d="' + d + '"/></g>' : '';
+  }
+  function vlineAt(f, x, cls) {
+    var p = f.p(x, 0);
+    return '<g clip-path="url(#pclip)">' + ln([p[0], PADP.t], [p[0], VH - PADP.b], cls) + '</g>';
+  }
+  function pdot(f, x, y, label, cls, anchor, dx, dy) {
+    var p = f.p(x, y);
+    return '<circle class="dot' + (cls ? ' ' + cls : '') + '" cx="' + r1(p[0]) + '" cy="' + r1(p[1]) + '" r="3.6"/>' + (label ? tx([p[0] + (dx === undefined ? 8 : dx), p[1] + (dy === undefined ? -10 : dy)], label, anchor || 'start', 'sym') : '');
+  }
+  function autoY(fns, xmin, xmax, extras, trim) {
+    var vals = [], N = 400, lo, hi, i;
+    fns.forEach(function (fn) {
+      for (i = 0; i <= N; i++) {
+        var x = xmin + (xmax - xmin) * i / N, y;
+        try { y = fn(x); } catch (e) { y = NaN; }
+        if (Number.isFinite(y) && Math.abs(y) < 1e9) vals.push(y);
+      }
+    });
+    vals.sort(function (a, b) { return a - b; });
+    if (trim !== false && vals.length > 20) { lo = vals[Math.floor(0.03 * vals.length)]; hi = vals[Math.ceil(0.97 * vals.length) - 1]; }
+    else if (vals.length) { lo = vals[0]; hi = vals[vals.length - 1]; }
+    (extras || []).forEach(function (y) {
+      if (!Number.isFinite(y)) return;
+      lo = lo === undefined ? y : Math.min(lo, y); hi = hi === undefined ? y : Math.max(hi, y);
+    });
+    if (lo === undefined) return null;
+    var pad = (hi - lo) > 1e-9 ? 0.12 * (hi - lo) : 1;
+    return [lo - pad, hi + pad];
+  }
+  function drawBars(vals, intX) {   /* столбики: значения членов последовательности */
+    var m = vals.length, ymin = Math.min.apply(null, vals.concat([0])), ymax = Math.max.apply(null, vals.concat([0])), span = (ymax - ymin) || 1;
+    var f = plotFit(0.3, m + 0.7, ymin - (ymin < 0 ? 0.16 : 0) * span, ymax + 0.16 * span), s = plotBase(f, { intX: intX, maxX: m }), zero = f.p(0, 0)[1];
+    vals.forEach(function (v, i) {
+      var p = f.p(i + 1, v), w = f.sx * 0.62, top = Math.min(p[1], zero), h = Math.abs(zero - p[1]);
+      s += '<g clip-path="url(#pclip)"><rect class="bar" x="' + r1(p[0] - w / 2) + '" y="' + r1(top) + '" width="' + r1(w) + '" height="' + r1(Math.max(h, 0.5)) + '"/></g>';
+      if (m <= 8) s += tx([p[0], v >= 0 ? p[1] - 9 : p[1] + 9], fmt(v, 2), 'middle', 'sym');
+    });
+    return { f: f, svg: s };
+  }
+
+
+  /* ---- режимы алгебраического калькулятора ---- */
+  var asc = function (a, b) { return a - b; };
+  function ratText(x) {   /* 'p/q' для нецелой рациональной x, иначе '' */
+    if (Number.isInteger(x)) return '';
+    var f = toFrac(x, 1000);
+    if (!f || Math.abs(x - f[0] / f[1]) > 1e-12 * Math.max(1, Math.abs(x))) return '';
+    return signed(f[0]) + '/' + f[1];
+  }
+  function full(x) { var r = ratText(x); return r ? sn(x) + ' (' + r + ')' : sn(x); }
+  function xi(i) { return 'x' + sub(i); }
+  function exprField(k, label, sym, def, hint, eq) { return { k: k, label: label, sym: sym, def: def, kind: 'expr', eq: !!eq, hint: hint }; }
+  function numField(k, label, sym, def, kind, min, max) { return { k: k, label: label, sym: sym, def: def, kind: kind || 'any', min: min, max: max }; }
+  function rangeOf(pts, minW) {
+    pts = pts.filter(Number.isFinite);
+    if (!pts.length) pts = [0];
+    var lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts), span = hi - lo, pad = Math.max(minW / 4, span * 0.35);
+    lo -= pad; hi += pad;
+    if (hi - lo < minW) { var m = (lo + hi) / 2; lo = m - minW / 2; hi = m + minW / 2; }
+    return [lo, hi];
+  }
+  function yRange(ys) {
+    ys = ys.filter(Number.isFinite);
+    if (!ys.length) return [-1, 1];
+    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), pad = (hi - lo) > 1e-9 ? 0.14 * (hi - lo) : 1;
+    return [lo - pad, hi + pad];
+  }
+  function legend(items) {
+    var s = '';
+    items.forEach(function (it, i) {
+      var y = PADP.t + 11 + i * 15, x = PADP.l + 8;
+      s += '<line class="' + it.cls + '" x1="' + x + '" y1="' + y + '" x2="' + (x + 18) + '" y2="' + y + '"/>' + tx([x + 24, y], it.text, 'start', 'lg');
+    });
+    return s;
+  }
+  function linTerm(c, name, first) {
+    if (c === 0) return '';
+    var ac = Math.abs(c), body = (ac === 1 ? '' : numStr(ac)) + name;
+    return (c < 0 ? (first ? '−' : ' − ') : (first ? '' : ' + ')) + body;
+  }
+  function linEq(a, b, c) { var s = linTerm(a, 'x', true); s += linTerm(b, 'y', !s); return (s || '0') + ' = ' + sn(c); }
+  function plotSvg(inner, label) { return svgWrap(inner, label); }
+
+  var ALG = [];
+
+  /* --- значение выражения --- */
+  ALG.push({
+    id: 'a-eval', subject: 'alg', group: 'Вычисления', name: 'Значение выражения', plot: false,
+    note: 'Пишите выражение как на бумаге: степень — знаком ^ (2^10), корень — sqrt(…), дробь — /, факториал — 5!, число π — pi. Знак умножения перед скобкой можно опустить: 3(4 + 1).',
+    fields: [exprField('e', 'Выражение', 'f', '(3 + 5) · 2 − 12 / 4', 'Например: 2^10 − sqrt(49)·3,  5!/(3!·2!),  (1/2 + 1/3)^2')],
+    calc: function (v) {
+      var c = compileExpr(v.e);
+      if (c.hasX) throw new CalcError('В выражении есть x. Подставьте число или откройте «Многочлены» или «Уравнение с x».');
+      var val = c.f(0);
+      if (Number.isNaN(val)) throw new CalcError('Значение не определено: проверьте корни из отрицательных чисел и логарифмы нуля. Факториал существует только для целых чисел от 0 до 170.');
+      if (!Number.isFinite(val)) throw new CalcError('Деление на ноль или слишком большое число.');
+      var rows = [trow('Значение', 'с учётом порядка действий: скобки, степени, умножение и деление, сложение и вычитание', full(val))];
+      if (!Number.isInteger(val)) rows.push(trow('Округление до сотых', '', sn(Number(val.toFixed(2)))));
+      else if (Math.abs(val) >= 2 && Math.abs(val) <= 1e12) rows.push(trow('Простые множители' + (val < 0 ? ' модуля' : ''), 'разложение на простые числа', factorIntStr(Math.abs(val))));
+      return rows;
+    },
+    draw: function () { return ''; }
+  });
+
+  /* --- многочлены --- */
+  function polyFromField(src) {
+    var pf = pTrim(polyOf(compileExpr(src).ast));
+    if (!pf.every(Number.isFinite)) throw new CalcError('Коэффициенты слишком велики для вычисления.');
+    return pf;
+  }
+  ALG.push({
+    id: 'a-poly', subject: 'alg', group: 'Вычисления', name: 'Многочлены', plot: true,
+    note: 'Скобки раскрываются автоматически. Для многочлена находятся разложение на множители, корни, производная и первообразная; на графике отмечены корни.',
+    fields: [
+      exprField('p', 'Многочлен', 'P(x)', 'x^3 - 6x^2 + 11x - 6', 'Например: (x+1)(x−2)(x−3),  2x^2 − 8,  (x−1)^3'),
+      numField('x0', 'Значение x₀', 'x₀', '2')
+    ],
+    calc: function (v) {
+      var pf = polyFromField(v.p), deg = pf.length - 1, rows = [];
+      rows.push(trow('В стандартном виде', 'после раскрытия скобок и приведения подобных', polyStr(pf)));
+      if (deg === 0 && pf[0] === 0) { rows.push(trow('Корни', '', 'любое x (нулевой многочлен)')); return rows; }
+      rows.push(trow('Степень', '', String(deg)));
+      if (deg >= 1) {
+        var F = factorRational(pf), R = polyRoots(pf), i;
+        if (deg >= 2) {
+          if (F && (F.zero + F.lin.length > 0)) rows.push(trow('Разложение на множители', F.rest.length > 1 ? 'над рациональными числами; последний множитель дальше не раскладывается' : 'над рациональными числами', factorStr(F)));
+          else rows.push(trow('Разложение на множители', 'над рациональными числами', 'не раскладывается'));
+        }
+        var shown = 0;
+        R.real.forEach(function (r) {
+          if (shown++ >= 12) return;
+          rows.push(trow('Корень ' + xi(shown), r.m > 1 ? 'кратность ' + r.m : '', full(r.x)));
+        });
+        if (R.real.length > 12) rows.push(trow('Корни', '', 'и ещё ' + (R.real.length - 12)));
+        R.cx.forEach(function (z) { rows.push(trow('Комплексные корни', 'пара сопряжённых чисел', sn(z.re) + ' ± ' + fmtN(z.im) + 'i')); });
+        if (R.skipped) rows.push(trow('Остальные корни', '', 'для степени выше 12 приближённо не вычисляются'));
+        else if (!R.real.length) rows.push(trow('Действительные корни', '', 'нет'));
+      }
+      rows.push(trow('Производная', 'P′(x)', polyStr(polyDeriv(pf))));
+      rows.push(trow('Первообразная', '∫ P(x) dx', polyStr(polyInteg(pf)) + ' + C'));
+      rows.push(trow('Значение при x = ' + sn(v.x0), 'P(x₀) — подставьте x₀ из поля выше', sn(polyEval(pf, v.x0))));
+      return rows;
+    },
+    draw: function (v, ok) {
+      var pf = polyFromField(v.p), fn = function (x) { return polyEval(pf, x); }, pts = [0], R = { real: [], cx: [] };
+      if (pf.length > 1) {
+        R = polyRoots(pf);
+        R.real.forEach(function (r) { pts.push(r.x); });
+        R.cx.forEach(function (z) { pts.push(z.re); });
+        if (pf.length > 2) polyRoots(polyDeriv(pf)).real.forEach(function (r) { pts.push(r.x); });
+      }
+      var rg = rangeOf(pts, 6), ex = [0, fn(rg[0]), fn(rg[1])];
+      R.real.forEach(function (r) { ex.push(fn(r.x)); });
+      var yr = autoY([fn], rg[0], rg[1], ex, false), f = plotFit(rg[0], rg[1], yr[0], yr[1]);
+      var s = plotBase(f) + curve(f, fn, 'pc1');
+      R.real.slice(0, 8).forEach(function (r, i) { s += pdot(f, r.x, 0, R.real.length <= 5 ? xi(i + 1) : '', 'hollow', 'middle', 0, -13); });
+      return plotSvg(s + legend([{ cls: 'pc1', text: 'y = P(x)' }]), 'график многочлена');
+    }
+  });
+
+  /* --- НОД и НОК --- */
+  ALG.push({
+    id: 'a-gcd', subject: 'alg', group: 'Вычисления', name: 'НОД, НОК и множители', plot: false,
+    note: 'Числа натуральные, не больше 10¹². Показан алгоритм Евклида и разложение на простые множители.',
+    fields: [numField('a', 'Первое число', 'a', '84', 'int', 1, 1e12), numField('b', 'Второе число', 'b', '126', 'int', 1, 1e12)],
+    calc: function (v) {
+      var a = v.a, b = v.b, x = Math.max(a, b), y = Math.min(a, b), steps = [];
+      while (y) { steps.push(x + ' = ' + Math.floor(x / y) + '·' + y + ' + ' + (x % y)); var t = x % y; x = y; y = t; }
+      var g = x, lcm = BigInt(a) / BigInt(g) * BigInt(b);
+      return [
+        trow('НОД', 'наибольший общий делитель', groupDigits(g)),
+        trow('НОК', 'a·b / НОД', groupDigits(lcm.toString())),
+        trow('Алгоритм Евклида', steps.slice(0, 14).join(';  ') + (steps.length > 14 ? ' …' : ''), 'последний ненулевой остаток: ' + groupDigits(g)),
+        trow('Множители числа ' + groupDigits(a), '', factorIntStr(a)),
+        trow('Множители числа ' + groupDigits(b), '', factorIntStr(b)),
+        trow('Взаимно простые', 'НОД равен 1', g === 1 ? 'да' : 'нет')
+      ];
+    },
+    draw: function () { return ''; }
+  });
+
+  /* --- линейное уравнение --- */
+  ALG.push({
+    id: 'a-linear', subject: 'alg', group: 'Уравнения', name: 'Линейное уравнение', plot: true,
+    note: 'Уравнение ax + b = c. Тяните точки на графике: точка на оси y меняет b, вторая точка на прямой — наклон a, точка на горизонтали — число c. Корень — там, где прямые пересекаются.',
+    fields: [numField('a', 'Коэффициент при x', 'a', '2'), numField('b', 'Свободный член слева', 'b', '-3'), numField('c', 'Правая часть', 'c', '7')],
+    calc: function (v) {
+      var a = v.a, b = v.b, c = v.c, rows = [];
+      rows.push(trow('Уравнение', '', polyStr([b, a]) + ' = ' + sn(c)));
+      if (a === 0) {
+        rows.push(trow('Решение', 'при a = 0 уравнение принимает вид b = c', b === c ? 'любое x (верное равенство ' + sn(b) + ' = ' + sn(c) + ')' : 'решений нет (' + sn(b) + ' ≠ ' + sn(c) + ')'));
+        return rows;
+      }
+      var x = (c - b) / a;
+      rows.push(trow('Перенос слагаемого', 'ax = c − b', polyStr([0, a]) + ' = ' + sn(c - b)));
+      rows.push(trow('Корень', 'x = (c − b) / a = (' + sn(c) + ' − ' + pn(b) + ') / ' + pn(a), full(x)));
+      rows.push(trow('Проверка', 'a·x + b', sn(a * x + b) + (Math.abs(a * x + b - c) <= 1e-9 * Math.max(1, Math.abs(c)) ? ' = ' + sn(c) + ', верно' : '')));
+      return rows;
+    },
+    draw: function (v) {
+      var a = v.a, b = v.b, c = v.c, fn = function (x) { return a * x + b; }, xr = a !== 0 ? (c - b) / a : NaN;
+      var rg = rangeOf([0, xr], 6), yr = yRange([b, c, fn(rg[0]), fn(rg[1])]), f = plotFit(rg[0], rg[1], yr[0], yr[1]);
+      var s = plotBase(f) + curve(f, function () { return c; }, 'pc2') + curve(f, fn, 'pc1');
+      if (Number.isFinite(xr)) s += pdot(f, xr, c, 'x = ' + fmt(xr, 2), 'warm', 'middle', 0, -13);
+      s += legend([{ cls: 'pc1', text: 'y = ' + polyStr([b, a]) }, { cls: 'pc2', text: 'y = ' + sn(c) }]);
+      var xa = f.xmax >= 1 ? 1 : -1, xc = f.xmin + 0.14 * (f.xmax - f.xmin);
+      s += hdl(f, 'b', [0, b], 'точку пересечения с осью y (b)', function (w) { return { b: snapAny(w[1], f.sy) }; });
+      s += hdl(f, 'a', [xa, a * xa + b], 'наклон прямой (a)', function (w) { return { a: snapAny((w[1] - b) * xa, f.sy) }; });
+      s += hdl(f, 'c', [xc, c], 'правую часть (c)', function (w) { return { c: snapAny(w[1], f.sy) }; });
+      return plotSvg(s, 'графики левой и правой частей линейного уравнения');
+    }
+  });
+
+  /* --- квадратное уравнение --- */
+  function quadSets(a, D, r) {   /* где a·x² + bx + c положителен и где отрицателен */
+    var fx = function (z) { return sn(z); };
+    if (D > 0) {
+      var out = 'x ∈ (−∞; ' + fx(r[0]) + ') ∪ (' + fx(r[1]) + '; +∞)', inn = 'x ∈ (' + fx(r[0]) + '; ' + fx(r[1]) + ')';
+      return a > 0 ? [out, inn] : [inn, out];
+    }
+    if (D === 0) {
+      var ne = 'все x, кроме x = ' + fx(r[0]);
+      return a > 0 ? [ne, 'таких x нет'] : ['таких x нет', ne];
+    }
+    return a > 0 ? ['любое x', 'таких x нет'] : ['таких x нет', 'любое x'];
+  }
+  ALG.push({
+    id: 'a-quad', subject: 'alg', group: 'Уравнения', name: 'Квадратное уравнение', plot: true,
+    note: 'Уравнение ax² + bx + c = 0. Тяните вершину параболы — меняются b и c; вторую точку на ветви — меняется a. Корни — точки пересечения с осью x.',
+    fields: [numField('a', 'Коэффициент при x²', 'a', '1'), numField('b', 'Коэффициент при x', 'b', '-2'), numField('c', 'Свободный член', 'c', '-3')],
+    calc: function (v) {
+      var a = v.a, b = v.b, c = v.c, rows = [];
+      if (a === 0) throw new CalcError('При a = 0 это уже не квадратное уравнение, а линейное. Откройте «Линейное уравнение».');
+      var D = b * b - 4 * a * c, r = [];
+      if (!Number.isFinite(D)) throw new CalcError('Числа слишком велики для вычисления.');
+      rows.push(trow('Уравнение', '', polyStr([c, b, a]) + ' = 0'));
+      rows.push(trow('Дискриминант D', 'D = b² − 4ac = ' + pn(b) + '² − 4·' + pn(a) + '·' + pn(c), sn(D)));
+      if (D > 0) {
+        var sq = Math.sqrt(D), q = -0.5 * (b + (b >= 0 ? 1 : -1) * sq);
+        r = [q / a, c / q].sort(asc);
+        var ex = exactQuad(a, b, c);
+        rows.push(trow('Корень ' + xi(1) + ' (D > 0)', 'x = (−b ± √D) / 2a' + (ex ? ' = ' + ex : ''), full(r[0])));
+        rows.push(trow('Корень ' + xi(2), '', full(r[1])));
+      } else if (D === 0) {
+        r = [-b / (2 * a)];
+        rows.push(trow('Корень x (D = 0)', 'один двойной корень x = −b / 2a', full(r[0])));
+      } else {
+        var re = -b / (2 * a), im = Math.sqrt(-D) / (2 * Math.abs(a));
+        rows.push(trow('Корень ' + xi(1) + ' (D < 0)', 'действительных корней нет; комплексные: x = (−b ± i√|D|) / 2a', sn(re) + ' − ' + fmtN(im) + 'i'));
+        rows.push(trow('Корень ' + xi(2), '', sn(re) + ' + ' + fmtN(im) + 'i'));
+      }
+      rows.push(trow('Теорема Виета', 'x₁ + x₂ = −b/a,  x₁·x₂ = c/a', 'сумма ' + full(-b / a) + ';  произведение ' + full(c / a)));
+      var F = factorRational([c, b, a]);
+      if (D >= 0 && F && F.rest.length === 1) rows.push(trow('Разложение на множители', 'a(x − x₁)(x − x₂)', factorStr(F)));
+      rows.push(trow('Вершина параболы', 'x = −b / 2a, y = c − b² / 4a', '(' + sn(-b / (2 * a)) + '; ' + sn(c - b * b / (4 * a)) + ')'));
+      var sets = quadSets(a, D, r);
+      rows.push(trow('Где ' + polyStr([c, b, a]) + ' > 0', 'решение неравенства', sets[0]));
+      rows.push(trow('Где ' + polyStr([c, b, a]) + ' < 0', 'решение неравенства', sets[1]));
+      return rows;
+    },
+    draw: function (v) {
+      var a = v.a, b = v.b, c = v.c;
+      if (a === 0) {   /* не квадратное: рисуем прямую и оставляем ручку, которой можно вернуть a */
+        var fl = function (x) { return b * x + c; }, rg0 = rangeOf([0, b !== 0 ? -c / b : 0], 6), yr0 = yRange([c, fl(rg0[0]), fl(rg0[1])]), f0 = plotFit(rg0[0], rg0[1], yr0[0], yr0[1]);
+        return plotSvg(plotBase(f0) + curve(f0, fl, 'pc1') + legend([{ cls: 'pc1', text: 'y = ' + polyStr([c, b]) }]) +
+          hdl(f0, 'a', [1, b + c], 'коэффициент a', function (w) { var na = snapAny(w[1] - b - c, f0.sy); return na === 0 ? null : { a: na }; }), 'график линейной функции');
+      }
+      var fn = function (x) { return a * x * x + b * x + c; }, h = -b / (2 * a), k = c - b * b / (4 * a), D = b * b - 4 * a * c, pts = [h, 0], r = [];
+      if (D >= 0) { var sq = Math.sqrt(D); r = [(-b - sq) / (2 * a), (-b + sq) / (2 * a)].sort(asc); pts.push(r[0], r[1]); }
+      var rg = rangeOf(pts, 6), yr = yRange([k, 0, fn(rg[0]), fn(rg[1])]), f = plotFit(rg[0], rg[1], yr[0], yr[1]);
+      var s = plotBase(f) + curve(f, fn, 'pc1');
+      r.forEach(function (z, i) { s += pdot(f, z, 0, xi(i + 1), 'hollow', 'middle', 0, -13); });
+      s += legend([{ cls: 'pc1', text: 'y = ' + polyStr([c, b, a]) }]);
+      var dx = f.xmax - h >= 1.2 ? 1 : -1;
+      s += hdl(f, 'vertex', [h, k], 'вершину параболы', function (w) {
+        var hh = snapAny(w[0], f.sx), kk = snapAny(w[1], f.sy);
+        return { b: cleanN(-2 * a * hh), c: cleanN(a * hh * hh + kk) };
+      });
+      s += hdl(f, 'a', [h + dx, k + a], 'раскрытие ветвей (a)', function (w) {
+        var na = snapAny(w[1] - k, f.sy);
+        if (na === 0) return null;
+        return { a: na, b: cleanN(-2 * na * h), c: cleanN(na * h * h + k) };
+      });
+      return plotSvg(s, 'график квадратичной функции');
+    }
+  });
+
+  /* --- система двух линейных уравнений --- */
+  ALG.push({
+    id: 'a-system', subject: 'alg', group: 'Уравнения', name: 'Система двух уравнений', plot: true,
+    note: 'Система a₁x + b₁y = c₁, a₂x + b₂y = c₂ решается по формулам Крамера. Каждое уравнение — прямая; решение — точка их пересечения.',
+    fields: [
+      numField('a1', 'x в первом уравнении', 'a₁', '2'), numField('b1', 'y в первом уравнении', 'b₁', '1'), numField('c1', 'правая часть первого', 'c₁', '5'),
+      numField('a2', 'x во втором уравнении', 'a₂', '1'), numField('b2', 'y во втором уравнении', 'b₂', '-1'), numField('c2', 'правая часть второго', 'c₂', '1')
+    ],
+    calc: function (v) {
+      var S = solveSystem(v.a1, v.b1, v.c1, v.a2, v.b2, v.c2), rows = [];
+      if (![S.det, S.dx, S.dy].every(Number.isFinite)) throw new CalcError('Числа слишком велики для вычисления.');
+      rows.push(trow('Система', '', linEq(v.a1, v.b1, v.c1) + ';  ' + linEq(v.a2, v.b2, v.c2)));
+      rows.push(trow('Определитель Δ', 'Δ = a₁b₂ − a₂b₁ = ' + pn(v.a1) + '·' + pn(v.b2) + ' − ' + pn(v.a2) + '·' + pn(v.b1), sn(S.det)));
+      if (S.type === 'one') {
+        rows.push(trow('Δx', 'Δx = c₁b₂ − c₂b₁', sn(S.dx)));
+        rows.push(trow('Δy', 'Δy = a₁c₂ − a₂c₁', sn(S.dy)));
+        rows.push(trow('x', 'x = Δx / Δ', full(S.x)));
+        rows.push(trow('y', 'y = Δy / Δ', full(S.y)));
+        var r1 = v.a1 * S.x + v.b1 * S.y, r2 = v.a2 * S.x + v.b2 * S.y;
+        var good = Math.abs(r1 - v.c1) <= 1e-9 * Math.max(1, Math.abs(v.c1)) && Math.abs(r2 - v.c2) <= 1e-9 * Math.max(1, Math.abs(v.c2));
+        rows.push(trow('Проверка', 'левые части обоих уравнений при найденных x и y', good ? 'верно: ' + sn(r1) + ' и ' + sn(r2) : sn(r1) + ' и ' + sn(r2)));
+      } else if (S.type === 'none') rows.push(trow('Решение', 'прямые параллельны или одно из уравнений неверно', 'решений нет'));
+      else if (S.type === 'all') rows.push(trow('Решение', 'оба уравнения вида 0 = 0', 'любые x и y'));
+      else rows.push(trow('Решение', 'Δ = 0, а уравнения равносильны: прямые совпадают', 'бесконечно много решений'));
+      return rows;
+    },
+    draw: function (v) {
+      var S = solveSystem(v.a1, v.b1, v.c1, v.a2, v.b2, v.c2), L = [[v.a1, v.b1, v.c1], [v.a2, v.b2, v.c2]];
+      var xsP = [0], ysP = [0];
+      if (S.type === 'one') { xsP.push(S.x); ysP.push(S.y); }
+      L.forEach(function (l) { if (l[1] === 0 && l[0] !== 0) xsP.push(l[2] / l[0]); });
+      var rg = rangeOf(xsP, 6), lineY = function (l) { return function (x) { return (l[2] - l[0] * x) / l[1]; }; };
+      L.forEach(function (l) { if (l[1] !== 0) { ysP.push(lineY(l)(rg[0]), lineY(l)(rg[1])); } });
+      var yr = yRange(S.type === 'one' ? ysP.concat([S.y - 1, S.y + 1]) : ysP), f = plotFit(rg[0], rg[1], yr[0], yr[1]);
+      var s = plotBase(f), cls = ['pc1', 'pc2'], leg = [];
+      L.forEach(function (l, i) {
+        if (l[1] !== 0) s += curve(f, lineY(l), cls[i]);
+        else if (l[0] !== 0) s += vlineAt(f, l[2] / l[0], cls[i]);
+        else return;
+        leg.push({ cls: cls[i], text: linEq(l[0], l[1], l[2]) });
+      });
+      if (S.type === 'one') s += pdot(f, S.x, S.y, '(' + fmt(S.x, 2) + '; ' + fmt(S.y, 2) + ')', 'warm', 'middle', 0, -13);
+      return plotSvg(s + legend(leg), 'графики двух линейных уравнений');
+    }
+  });
+
+  /* --- любое уравнение с x --- */
+  var EQCACHE = { src: null, res: null };
+  function solveEq(src) {
+    if (EQCACHE.src === src) return EQCACHE.res;
+    var sp = splitEq(src), L = compileExpr(sp.l), R = compileExpr(sp.r), res = { L: L, R: R, kind: '', real: [], cx: [], skipped: false, pd: null };
+    var g = function (x) { return L.f(x) - R.f(x); };
+    if (!L.hasX && !R.hasX) {
+      var a0 = L.f(0), b0 = R.f(0);
+      if (!Number.isFinite(a0) || !Number.isFinite(b0)) throw new CalcError('Значение не определено: проверьте деление на ноль и корни из отрицательных чисел.');
+      res.kind = 'const'; res.a = a0; res.b = b0; res.holds = Math.abs(a0 - b0) <= 1e-9 * Math.max(1, Math.abs(a0), Math.abs(b0));
+    } else {
+      var pd = null;
+      try { pd = pTrim(padd(polyOf(L.ast), pscale(polyOf(R.ast), -1))); } catch (e) { if (!(e instanceof CalcError)) throw e; pd = null; }
+      if (pd && pd.every(Number.isFinite)) {
+        res.pd = pd;
+        if (pd.length === 1) res.kind = pd[0] === 0 ? 'all' : 'none';
+        else {
+          var P = polyRoots(pd);
+          res.kind = 'poly'; res.real = P.real; res.cx = P.cx; res.skipped = P.skipped;
+        }
+      } else {
+        res.kind = 'num';
+        res.real = findRoots(g, -50, 50).map(function (x) { return { x: x, m: 1 }; });
+      }
+    }
+    EQCACHE.src = src; EQCACHE.res = res;
+    return res;
+  }
+  ALG.push({
+    id: 'a-equation', subject: 'alg', group: 'Уравнения', name: 'Уравнение с x', plot: true,
+    note: 'Любое уравнение с одной переменной x: многочлены решаются точно (рациональные корни — без округления), остальные уравнения — численно на отрезке [−50; 50]. Функции: sqrt, abs, sin, cos, tan, ln, lg, exp; углы — в радианах.',
+    fields: [exprField('eq', 'Уравнение', 'f(x)', 'x^3 - 2x = 5', 'Например: x^2 = 2x + 8,  sqrt(x) = x − 2,  sin(x) = x/2,  2^x = 10', true)],
+    calc: function (v) {
+      var S = solveEq(v.eq), rows = [], shown = 0;
+      if (S.kind === 'const') {
+        rows.push(trow('Проверка равенства', 'в уравнении нет x', sn(S.a) + (S.holds ? ' = ' : ' ≠ ') + sn(S.b)));
+        rows.push(trow('Вывод', '', S.holds ? 'равенство верно' : 'равенство неверно'));
+        return rows;
+      }
+      if (S.kind === 'all') { rows.push(trow('Решение', 'после переноса всех слагаемых влево получается 0 = 0', 'любое x')); return rows; }
+      if (S.kind === 'none') { rows.push(trow('Решение', 'после переноса всех слагаемых влево получается ' + sn(S.pd[0]) + ' = 0', 'решений нет')); return rows; }
+      if (S.kind === 'poly') {
+        rows.push(trow('Приведённое уравнение', 'все слагаемые перенесены влево', polyStr(S.pd) + ' = 0'));
+        var F = factorRational(S.pd);
+        if (S.pd.length > 2 && F && (F.zero + F.lin.length > 0)) rows.push(trow('Разложение на множители', 'над рациональными числами', factorStr(F) + ' = 0'));
+      } else rows.push(trow('Метод', 'уравнение не сводится к многочлену, корни ищутся численно', 'отрезок [−50; 50]'));
+      S.real.forEach(function (r) {
+        if (shown++ >= 12) return;
+        rows.push(trow('Корень ' + xi(shown), (r.m > 1 ? 'кратность ' + r.m : (S.kind === 'num' ? 'приближённо' : '')), full(r.x)));
+      });
+      if (S.real.length > 12) rows.push(trow('Корни', '', 'и ещё ' + (S.real.length - 12)));
+      S.cx.forEach(function (z) { rows.push(trow('Комплексные корни', 'пара сопряжённых чисел', sn(z.re) + ' ± ' + fmtN(z.im) + 'i')); });
+      if (S.skipped) rows.push(trow('Остальные корни', '', 'для степени выше 12 приближённо не вычисляются'));
+      else if (!S.real.length) rows.push(trow('Действительные корни', S.kind === 'num' ? 'на отрезке [−50; 50]' : '', 'не найдены'));
+      return rows;
+    },
+    draw: function (v) {
+      var S = solveEq(v.eq);
+      if (S.kind === 'const') return '';
+      var fl = S.L.f, fr = S.R.f, rts = S.real.map(function (r) { return r.x; });
+      var rg = rts.length ? rangeOf(rts, 6) : [-10, 10], ex = [0];
+      rts.forEach(function (x) { ex.push(fr(x)); });
+      var yr = autoY([fl, fr], rg[0], rg[1], ex, S.kind !== 'poly'), f = plotFit(rg[0], rg[1], yr[0], yr[1]);
+      var s = plotBase(f);
+      s += curve(f, fr, 'pc2') + curve(f, fl, 'pc1');
+      S.real.slice(0, 8).forEach(function (r, i) { s += pdot(f, r.x, fr(r.x), S.real.length <= 4 ? xi(i + 1) : '', 'warm', 'middle', 0, -13); });
+      return plotSvg(s + legend([{ cls: 'pc1', text: 'левая часть' }, { cls: 'pc2', text: 'правая часть' }]), 'графики левой и правой частей уравнения');
+    }
+  });
+
+  /* --- прогрессии --- */
+  function firstTerms(fn, n) {
+    var m = Math.min(n, 8), out = [];
+    for (var i = 1; i <= m; i++) out.push(sn(fn(i)));
+    return out.join(';  ') + (n > m ? ';  …' : '');
+  }
+  function termsBars(fn, n) {
+    var vals = [], m = Math.min(n, 12);
+    for (var i = 1; i <= m; i++) vals.push(fn(i));
+    var B = drawBars(vals, true);
+    return plotSvg(B.svg, 'члены прогрессии');
+  }
+  ALG.push({
+    id: 'a-arith', subject: 'alg', group: 'Последовательности', name: 'Арифметическая прогрессия', plot: true,
+    note: 'Каждый следующий член больше предыдущего на разность d. На диаграмме — первые члены (не больше 12).',
+    fields: [numField('a1', 'Первый член', 'a₁', '3'), numField('d', 'Разность', 'd', '4'), numField('n', 'Номер члена n (1–1 000 000)', 'n', '10', 'int', 1, 1000000)],
+    calc: function (v) {
+      var a1 = v.a1, d = v.d, n = v.n, an = a1 + (n - 1) * d, S = (a1 + an) * n / 2;
+      if (!Number.isFinite(an) || !Number.isFinite(S)) throw new CalcError('Числа слишком велики для вычисления.');
+      return [
+        trow('Член aₙ', 'aₙ = a₁ + (n − 1)·d = ' + pn(a1) + ' + ' + (n - 1) + '·' + pn(d), full(an)),
+        trow('Сумма Sₙ', 'Sₙ = (a₁ + aₙ)·n / 2', full(S)),
+        trow('Первые члены', '', firstTerms(function (i) { return a1 + (i - 1) * d; }, n))
+      ];
+    },
+    draw: function (v) { return termsBars(function (i) { return v.a1 + (i - 1) * v.d; }, v.n); }
+  });
+  ALG.push({
+    id: 'a-geom', subject: 'alg', group: 'Последовательности', name: 'Геометрическая прогрессия', plot: true,
+    note: 'Каждый следующий член получается умножением предыдущего на знаменатель q. На диаграмме — первые члены (не больше 12).',
+    fields: [numField('b1', 'Первый член', 'b₁', '2'), numField('q', 'Знаменатель', 'q', '3'), numField('n', 'Номер члена n (1–1000)', 'n', '6', 'int', 1, 1000)],
+    calc: function (v) {
+      var b1 = v.b1, q = v.q, n = v.n, bn = b1 * Math.pow(q, n - 1), S = q === 1 ? b1 * n : b1 * (Math.pow(q, n) - 1) / (q - 1), rows;
+      if (!Number.isFinite(bn) || !Number.isFinite(S)) throw new CalcError('Числа слишком велики для вычисления.');
+      rows = [
+        trow('Член bₙ', 'bₙ = b₁·qⁿ⁻¹ = ' + pn(b1) + '·' + pn(q) + sup(n - 1), full(bn)),
+        trow('Сумма Sₙ', q === 1 ? 'при q = 1: Sₙ = n·b₁' : 'Sₙ = b₁·(qⁿ − 1) / (q − 1)', full(S)),
+        trow('Первые члены', '', firstTerms(function (i) { return b1 * Math.pow(q, i - 1); }, n))
+      ];
+      if (Math.abs(q) < 1) rows.push(trow('Сумма бесконечной прогрессии', 'S = b₁ / (1 − q), так как |q| < 1', full(b1 / (1 - q))));
+      else rows.push(trow('Сумма бесконечной прогрессии', 'формула S = b₁ / (1 − q) верна только при |q| < 1', 'не существует'));
+      return rows;
+    },
+    draw: function (v) { return termsBars(function (i) { return v.b1 * Math.pow(v.q, i - 1); }, v.n); }
+  });
+
+
+  var UNIT = { len: ' ед.', area: ' ед.²', vol: ' ед.³', angle: '°', text: '' };
+
+  /* ------------------------------------------------------------- задачи */
+  function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  var MINUS = '−';
+  function sgn(n) { return n < 0 ? MINUS + Math.abs(n) : String(n); }
+
+  var HINTS = {
+    easy_rect_area: ['Площадь прямоугольника: S = a · b.', 'Перемножьте две заданные стороны.'],
+    easy_rect_perimeter: ['Периметр прямоугольника: P = 2 · (a + b).', 'Сложите стороны и умножьте сумму на 2.'],
+    easy_circle_length: ['Длина окружности: C = 2πr.', 'Умножьте радиус на 2, затем на π ≈ 3,14159.'],
+    easy_triangle_area: ['Площадь треугольника: S = ½ · a · h.', 'Перемножьте основание и высоту и разделите на 2.'],
+    easy_third_angle: ['Сумма углов треугольника равна 180°.', 'Вычтите из 180° два известных угла.'],
+    easy_cube_volume: ['Объём куба: V = a³.', 'Умножьте ребро само на себя три раза.'],
+    medium_pythagoras: ['Теорема Пифагора: c² = a² + b².', 'Сложите квадраты катетов и извлеките квадратный корень.'],
+    medium_heron: ['Формула Герона: S = √(p(p−a)(p−b)(p−c)), где p = (a+b+c)/2 — полупериметр.', 'Сначала найдите p, затем три разности p−a, p−b, p−c, перемножьте всё и извлеките корень.'],
+    medium_trapezoid: ['Площадь трапеции: S = (a + b)/2 · h.', 'Найдите полусумму оснований и умножьте на высоту.'],
+    medium_cylinder_volume: ['Объём цилиндра: V = πr²h.', 'Площадь основания πr² умножьте на высоту.'],
+    medium_sector: ['Площадь сектора: S = πr² · α/360.', 'Найдите площадь всего круга и возьмите долю α/360 от неё.'],
+    medium_polygon_angle: ['Угол правильного n-угольника: (n − 2) · 180° / n.', 'Подставьте n: сумма углов (n−2)·180° делится на n равных углов.'],
+    medium_cone_volume: ['Объём конуса: V = ⅓ πr²h.', 'Площадь основания πr² умножьте на высоту и разделите на 3.'],
+    hard_cosine_law: ['Теорема косинусов: c² = a² + b² − 2ab·cos γ.', 'Вычислите a² + b², вычтите 2ab·cos γ и извлеките корень. cos 60° = 0,5; cos 90° = 0; cos 120° = −0,5; cos 45° ≈ 0,7071.'],
+    hard_inradius: ['Радиус вписанной окружности: r = S / p, где p — полупериметр.', 'Площадь S найдите по формуле Герона, затем разделите на p = (a+b+c)/2.'],
+    hard_circumradius: ['Радиус описанной окружности: R = abc / (4S).', 'Площадь S найдите по формуле Герона, затем разделите произведение сторон на 4S.'],
+    hard_shoelace: ['Формула шнуровки: S = ½ |Σ (xᵢ·yᵢ₊₁ − xᵢ₊₁·yᵢ)|.', 'Обходите вершины по порядку (последняя соединяется с первой), для каждой пары считайте xᵢ·yᵢ₊₁ − xᵢ₊₁·yᵢ, сложите, возьмите модуль и разделите на 2.'],
+    hard_vectors_angle: ['cos φ = (a·b) / (|a|·|b|), где a·b = x₁x₂ + y₁y₂.', 'Найдите скалярное произведение и длины векторов √(x²+y²), затем возьмите арккосинус и переведите в градусы.'],
+    hard_cone_surface: ['Полная поверхность конуса: S = πr(r + l), где l — образующая.', 'Образующая l = √(r² + h²). Затем вычислите πr(r + l).'],
+    hard_median: ['Длина медианы: m = ½ √(2b² + 2c² − a²) (медиана к стороне a).', 'Подставьте стороны: удвойте квадраты b и c, вычтите a², извлеките корень и разделите на 2.'],
+    hard_sphere_in_cube: ['Вписанный шар касается граней куба, поэтому его диаметр равен ребру: r = a/2.', 'Найдите r = a/2 и подставьте в V = 4/3 · πr³.'],
+    hard_pyramid: ['Боковая поверхность правильной пирамиды: S = ½ · P · l, где l — апофема боковой грани.', 'Апофема l = √(h² + (a/2)²). У квадрата P = 4a, поэтому S = 2a · l.']
+  };
+
+  var PROBLEMS = [
+    /* лёгкий */
+    { id: 'easy_rect_area', level: 1, gen: function () { var a = ri(3, 20), b = ri(3, 20); return ['Стороны прямоугольника ' + a + ' и ' + b + '. Найдите его площадь.', a * b]; } },
+    { id: 'easy_rect_perimeter', level: 1, gen: function () { var a = ri(3, 25), b = ri(3, 25); return ['Стороны прямоугольника ' + a + ' и ' + b + '. Найдите периметр.', 2 * (a + b)]; } },
+    { id: 'easy_circle_length', level: 1, gen: function () { var r = ri(1, 12); return ['Радиус окружности ' + r + '. Найдите длину окружности.', 2 * PI * r]; } },
+    { id: 'easy_triangle_area', level: 1, gen: function () { var b = ri(4, 24), h = ri(3, 20); return ['Основание треугольника ' + b + ', высота ' + h + '. Найдите площадь.', b * h / 2]; } },
+    { id: 'easy_third_angle', level: 1, gen: function () { var a = ri(30, 80), b = ri(30, 80); return ['В треугольнике два угла равны ' + a + '° и ' + b + '°. Найдите третий угол (в градусах).', 180 - a - b]; } },
+    { id: 'easy_cube_volume', level: 1, gen: function () { var a = ri(2, 12); return ['Ребро куба равно ' + a + '. Найдите его объём.', Math.pow(a, 3)]; } },
+    /* средний */
+    { id: 'medium_pythagoras', level: 2, gen: function () { var t = choice([[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29]]), k = ri(1, 4); return ['Катеты прямоугольного треугольника ' + t[0] * k + ' и ' + t[1] * k + '. Найдите гипотенузу.', t[2] * k]; } },
+    { id: 'medium_heron', level: 2, gen: function () { var t = choice([[13, 14, 15], [5, 12, 13], [9, 10, 17], [7, 15, 20], [6, 25, 29], [17, 25, 26]]); return ['Стороны треугольника ' + t[0] + ', ' + t[1] + ', ' + t[2] + '. Найдите площадь.', heron(t[0], t[1], t[2])]; } },
+    { id: 'medium_trapezoid', level: 2, gen: function () { var a = ri(4, 14), b = ri(15, 30), h = ri(3, 15); return ['Основания трапеции ' + a + ' и ' + b + ', высота ' + h + '. Найдите площадь.', (a + b) / 2 * h]; } },
+    { id: 'medium_cylinder_volume', level: 2, gen: function () { var r = ri(2, 9), h = ri(3, 15); return ['Радиус основания цилиндра ' + r + ', высота ' + h + '. Найдите объём.', PI * r * r * h]; } },
+    { id: 'medium_sector', level: 2, gen: function () { var r = ri(3, 12), d = choice([30, 45, 60, 90, 120, 150]); return ['Радиус круга ' + r + '. Найдите площадь сектора с углом ' + d + '°.', PI * r * r * d / 360]; } },
+    { id: 'medium_polygon_angle', level: 2, gen: function () { var n = choice([5, 6, 8, 9, 10, 12]); return ['Найдите (в градусах) угол правильного ' + n + '-угольника.', (n - 2) * 180 / n]; } },
+    { id: 'medium_cone_volume', level: 2, gen: function () { var r = ri(2, 9), h = ri(3, 15); return ['Радиус основания конуса ' + r + ', высота ' + h + '. Найдите объём.', PI * r * r * h / 3]; } },
+    /* сложный */
+    { id: 'hard_cosine_law', level: 3, gen: function () { var a = ri(5, 15), b = ri(5, 15), g = choice([60, 120, 90, 45]); return ['В треугольнике стороны ' + a + ' и ' + b + ', угол между ними ' + g + '°. Найдите третью сторону.', Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(rad(g)))]; } },
+    { id: 'hard_inradius', level: 3, gen: function () { var t = choice([[13, 14, 15], [5, 12, 13], [17, 25, 26], [9, 10, 17]]); return ['Найдите радиус вписанной окружности треугольника со сторонами ' + t[0] + ', ' + t[1] + ', ' + t[2] + '.', 2 * heron(t[0], t[1], t[2]) / (t[0] + t[1] + t[2])]; } },
+    { id: 'hard_circumradius', level: 3, gen: function () { var t = choice([[13, 14, 15], [5, 12, 13], [17, 25, 26], [7, 15, 20]]); return ['Найдите радиус описанной окружности треугольника со сторонами ' + t[0] + ', ' + t[1] + ', ' + t[2] + '.', t[0] * t[1] * t[2] / (4 * heron(t[0], t[1], t[2]))]; } },
+    { id: 'hard_shoelace', level: 3, gen: function () {
+      var pts = [[ri(-6, 0), ri(-6, 0)], [ri(1, 8), ri(-6, 0)], [ri(1, 8), ri(1, 8)], [ri(-6, 0), ri(1, 8)]];
+      return ['Найдите площадь четырёхугольника с вершинами ' + pts.map(function (p) { return '(' + sgn(p[0]) + '; ' + sgn(p[1]) + ')'; }).join(', ') + '.', polygonArea(pts)];
+    } },
+    { id: 'hard_vectors_angle', level: 3, gen: function () { var a = [ri(1, 8), ri(1, 8)], b = [ri(-8, -1), ri(1, 8)]; return ['Найдите угол (в градусах) между векторами (' + sgn(a[0]) + '; ' + sgn(a[1]) + ') и (' + sgn(b[0]) + '; ' + sgn(b[1]) + ').', angleBetween(a, b)]; } },
+    { id: 'hard_cone_surface', level: 3, gen: function () { var t = choice([[3, 4], [5, 12], [6, 8], [8, 15], [9, 12]]); return ['Радиус основания конуса ' + t[0] + ', высота ' + t[1] + '. Найдите площадь полной поверхности.', PI * t[0] * (t[0] + Math.hypot(t[0], t[1]))]; } },
+    { id: 'hard_median', level: 3, gen: function () { var t = choice([[6, 8, 10], [13, 14, 15], [10, 10, 12], [7, 9, 12]]); return ['Стороны треугольника ' + t[0] + ', ' + t[1] + ', ' + t[2] + '. Найдите медиану, проведённую к стороне ' + t[0] + '.', 0.5 * Math.sqrt(2 * t[1] * t[1] + 2 * t[2] * t[2] - t[0] * t[0])]; } },
+    { id: 'hard_sphere_in_cube', level: 3, gen: function () { var a = choice([4, 6, 8, 10, 12]); return ['В куб с ребром ' + a + ' вписан шар. Найдите объём шара.', 4 / 3 * PI * Math.pow(a / 2, 3)]; } },
+    { id: 'hard_pyramid', level: 3, gen: function () { var t = choice([[6, 4], [8, 3], [10, 12], [12, 8]]); return ['Основание правильной четырёхугольной пирамиды — квадрат со стороной ' + t[0] + ', высота ' + t[1] + '. Найдите площадь боковой поверхности.', 2 * t[0] * Math.sqrt(t[1] * t[1] + (t[0] / 2) * (t[0] / 2))]; } }
+  ];
+  var LEVEL_NAMES = { 1: 'Лёгкий', 2: 'Средний', 3: 'Сложный' };
+
+
+  /* ---- алгебраический тренажёр ---- */
+  function nz(lo, hi) { var v = 0; while (v === 0) v = ri(lo, hi); return v; }
+  function sg(n) { return (n < 0 ? '− ' : '+ ') + Math.abs(n); }
+  function gcdInt(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = a % b; a = b; b = t; } return a; }
+
+  var AHINTS = {
+    alg_order: ['Порядок действий: сначала умножение и деление, потом сложение и вычитание — слева направо.', 'Найдите произведение, затем выполните сложение и вычитание по порядку.'],
+    alg_linear1: ['Перенесите свободный член в правую часть, поменяв его знак: ax = c − b.', 'Разделите обе части на коэффициент при x: x = (c − b) / a.'],
+    alg_percent: ['p% от числа — это число · p / 100.', 'Разделите число на 100 и умножьте на p.'],
+    alg_substitute: ['Подставьте число вместо x; отрицательное число берите в скобки.', 'Сначала выполните умножение, затем прибавьте свободный член. Следите за знаками.'],
+    alg_power: ['Чётная степень отрицательного числа положительна, нечётная — отрицательна: (−b)³ = −b³.', 'Вычислите каждую степень отдельно и сложите результаты.'],
+    alg_fraction: ['Чтобы сложить дроби, приведите их к общему знаменателю: 1/p + 1/q = (q + p) / (p·q).', 'Сложите числители, оставьте общий знаменатель. Ответ можно дать дробью (5/6) или десятичным числом до сотых.'],
+    alg_linear2: ['Раскройте скобки: число перед скобкой умножается на каждое слагаемое внутри.', 'Перенесите слагаемые с x влево, числа вправо (меняя знаки), приведите подобные и разделите на коэффициент при x.'],
+    alg_quad_int: ['Для x² + px + q = 0 по теореме Виета: x₁ + x₂ = −p, x₁·x₂ = q.', 'Подберите два целых числа с произведением q и суммой −p. Или найдите D = p² − 4q и корни x = (−p ± √D) / 2.'],
+    alg_discriminant: ['Дискриминант: D = b² − 4ac, где a, b, c — коэффициенты при x², при x и свободный член.', 'Подставьте коэффициенты вместе со знаками; b возводите в квадрат целиком: (−3)² = 9.'],
+    alg_system1: ['Сложите или вычтите уравнения так, чтобы исключить одну из переменных.', 'Найдите одну переменную, подставьте её в любое уравнение и найдите вторую. Ответ записывайте как «x; y».'],
+    alg_arith_term: ['Член арифметической прогрессии: aₙ = a₁ + (n − 1)·d.', 'Умножьте разность d на (n − 1) и прибавьте a₁.'],
+    alg_geom_term: ['Член геометрической прогрессии: bₙ = b₁ · qⁿ⁻¹.', 'Возведите q в степень n − 1 (при отрицательном q следите за знаком) и умножьте на b₁.'],
+    alg_expand_coef: ['(ax + b)(cx + d) = acx² + (ad + bc)x + bd.', 'Коэффициент при x складывается из двух произведений: a·d и b·c. Учитывайте знаки.'],
+    alg_function_value: ['Подставьте число вместо x в формулу функции.', 'Отрицательное число берите в скобки: при x = −3 имеем x² = (−3)² = 9, а слагаемое −a·x при этом меняет знак.'],
+    alg_abs_eq: ['Уравнение |u| = b при b > 0 означает u = b или u = −b.', 'Решите два линейных уравнения. Ответ — два числа через точку с запятой.'],
+    alg_quad_general: ['Найдите дискриминант D = b² − 4ac.', 'Корни: x = (−b ± √D) / (2a). Дробные корни можно записывать как 1/3 или десятичной дробью до сотых. Ответ — два числа через точку с запятой.'],
+    alg_root_count: ['Число корней определяет дискриминант D = b² − 4ac: при D > 0 — два корня, при D = 0 — один, при D < 0 — корней нет.', 'Вычислите D и сравните его с нулём. Ответ — число 0, 1 или 2.'],
+    alg_vertex: ['Абсцисса вершины параболы y = ax² + bx + c равна x = −b / (2a).', 'Подставьте найденное x в формулу параболы — получится ордината. Ответ записывайте как «x; y».'],
+    alg_geom_sum: ['Сумма n членов геометрической прогрессии: Sₙ = b₁·(qⁿ − 1) / (q − 1).', 'Вычислите qⁿ, вычтите 1, разделите на q − 1 и умножьте на b₁.'],
+    alg_arith_sum: ['Сумма n членов арифметической прогрессии: Sₙ = (2a₁ + (n − 1)·d)·n / 2.', 'Первый член возьмите из условия, разность d = a₂ − a₁ найдите по двум первым членам.'],
+    alg_system2: ['Метод сложения: умножьте уравнения на такие числа, чтобы коэффициенты при одной переменной стали противоположными.', 'Сложите уравнения, найдите одну переменную, подставьте и найдите вторую. По Крамеру: Δ = a₁b₂ − a₂b₁, x = Δx / Δ, y = Δy / Δ. Ответ — «x; y».'],
+    alg_vieta: ['По теореме Виета для уравнения x² + px + q = 0: x₁ + x₂ = −p, x₁·x₂ = q.', 'x₁² + x₂² = (x₁ + x₂)² − 2·x₁x₂, поэтому сами корни искать необязательно.'],
+    alg_poly_roots: ['Целые корни многочлена с целыми коэффициентами ищут среди делителей свободного члена (и с плюсом, и с минусом).', 'Найдите один корень подстановкой, разделите многочлен на (x − корень) и решите получившееся квадратное уравнение. Ответ — три числа через точку с запятой.'],
+    alg_ineq_count: ['Решите уравнение x² − px + q = 0: его корни x₁ < x₂ разбивают числовую ось на три промежутка.', 'Ветви параболы направлены вверх, поэтому выражение отрицательно строго между корнями. Сосчитайте целые числа между x₁ и x₂, не включая сами корни.']
+  };
+
+  var APROBLEMS = [
+    /* лёгкий */
+    { id: 'alg_order', level: 1, gen: function () {
+      var a = ri(2, 20), b = ri(2, 9), c = ri(2, 9), d = ri(1, 20);
+      return ['Вычислите: ' + a + ' + ' + b + ' · ' + c + ' − ' + d + '.', a + b * c - d];
+    } },
+    { id: 'alg_linear1', level: 1, gen: function () {
+      var a = ri(2, 9), x0 = nz(-9, 12), b = ri(-15, 15), c = a * x0 + b;
+      return ['Решите уравнение: ' + polyStr([b, a]) + ' = ' + sgn(c) + '.', x0];
+    } },
+    { id: 'alg_percent', level: 1, gen: function () {
+      var p = choice([5, 10, 15, 20, 25, 50]), n = 20 * ri(1, 20);
+      return ['Найдите ' + p + '% от числа ' + n + '.', p * n / 100];
+    } },
+    { id: 'alg_substitute', level: 1, gen: function () {
+      var a = ri(2, 9), b = ri(-12, 12), t = -ri(1, 7);
+      return ['Найдите значение выражения ' + polyStr([b, a]) + ' при x = ' + sgn(t) + '.', a * t + b];
+    } },
+    { id: 'alg_power', level: 1, gen: function () {
+      var a = ri(3, 15), b = ri(2, 5);
+      return ['Вычислите: ' + a + '² + (−' + b + ')³.', a * a - b * b * b];
+    } },
+    { id: 'alg_fraction', level: 1, tol: 0.011, gen: function () {
+      var p = choice([2, 3, 4, 5, 6]), q = choice([2, 3, 4, 5, 6]);
+      while (q === p) q = choice([2, 3, 4, 5, 6]);
+      var num = p + q, den = p * q, g = gcdInt(num, den);
+      return ['Вычислите сумму 1/' + p + ' + 1/' + q + '. Ответ — дробь или десятичное число до сотых.', num / den, (num / g) + '/' + (den / g) + ' ≈ ' + fmt(num / den, 2)];
+    } },
+    /* средний */
+    { id: 'alg_linear2', level: 2, gen: function () {
+      var a = ri(2, 7), c = ri(1, 6), b = ri(1, 6), x0 = nz(-8, 8), d;
+      while (c === a) c = ri(1, 6);
+      d = a * (x0 - b) - c * x0;
+      return ['Решите уравнение: ' + a + '(x − ' + b + ') = ' + polyStr([d, c]) + '.', x0];
+    } },
+    { id: 'alg_quad_int', level: 2, kind: 'set', gen: function () {
+      var r1 = ri(-9, 8), r2 = ri(-9, 9);
+      while (r2 <= r1) r2 = ri(-9, 9);
+      return ['Найдите корни уравнения ' + polyStr([r1 * r2, -(r1 + r2), 1]) + ' = 0.', [r1, r2]];
+    } },
+    { id: 'alg_discriminant', level: 2, gen: function () {
+      var a = nz(-5, 5), b = ri(-9, 9), c = nz(-9, 9);
+      return ['Найдите дискриминант уравнения ' + polyStr([c, b, a]) + ' = 0.', b * b - 4 * a * c];
+    } },
+    { id: 'alg_system1', level: 2, kind: 'pair', gen: function () {
+      var a1 = choice([1, 1, 2, 3]), x0 = ri(-6, 8), y0 = ri(-6, 8);
+      return ['Решите систему уравнений: ' + linEq(a1, 1, a1 * x0 + y0) + ' и ' + linEq(1, -1, x0 - y0) + '. Ответ — пара «x; y».', [x0, y0]];
+    } },
+    { id: 'alg_arith_term', level: 2, gen: function () {
+      var a1 = ri(-5, 10), d = nz(-4, 6), n = ri(8, 30);
+      return ['В арифметической прогрессии a₁ = ' + sgn(a1) + ', d = ' + sgn(d) + '. Найдите a' + sub(n) + '.', a1 + (n - 1) * d];
+    } },
+    { id: 'alg_geom_term', level: 2, gen: function () {
+      var b1 = choice([1, 2, 3, 5, -1, -2]), q = choice([2, 3, -2, -3]), n = ri(4, 7);
+      return ['В геометрической прогрессии b₁ = ' + sgn(b1) + ', q = ' + sgn(q) + '. Найдите b' + sub(n) + '.', b1 * Math.pow(q, n - 1)];
+    } },
+    { id: 'alg_expand_coef', level: 2, gen: function () {
+      var a = ri(1, 4), c = ri(1, 4), b = nz(-6, 6), d = nz(-6, 6);
+      return ['Раскройте скобки в выражении (' + polyStr([b, a]) + ')(' + polyStr([d, c]) + ') и найдите коэффициент при x.', a * d + b * c];
+    } },
+    { id: 'alg_function_value', level: 2, gen: function () {
+      var a = ri(1, 8), b = ri(-9, 9), t = nz(-5, 6);
+      return ['Дана функция f(x) = ' + polyStr([b, -a, 1]) + '. Найдите f(' + sgn(t) + ').', t * t - a * t + b];
+    } },
+    { id: 'alg_abs_eq', level: 2, kind: 'set', gen: function () {
+      var a = ri(-6, 8), b = ri(1, 7);
+      return ['Решите уравнение |' + polyStr([-a, 1]) + '| = ' + b + '. Ответ — два числа.', [a - b, a + b]];
+    } },
+    /* сложный */
+    { id: 'alg_quad_general', level: 3, kind: 'set', tol: 0.011, gen: function () {
+      var m1, m2, n1, n2, r1, r2;
+      do {
+        m1 = choice([1, 2, 3]); m2 = choice([1, 2, 3]); n1 = nz(-6, 6); n2 = nz(-6, 6);
+        r1 = n1 / m1; r2 = n2 / m2;
+      } while (m1 * m2 === 1 || Math.abs(r1 - r2) < 0.3);
+      var a = m1 * m2, b = -(m1 * n2 + m2 * n1), c = n1 * n2, rs = [r1, r2].sort(function (u, v) { return u - v; });
+      return ['Найдите корни уравнения ' + polyStr([c, b, a]) + ' = 0.', rs];
+    } },
+    { id: 'alg_root_count', level: 3, gen: function () {
+      var a, b, c;
+      if (ri(1, 3) === 1) { var k = nz(-3, 3), m = ri(1, 3), n = nz(-4, 4); a = k * m * m; b = 2 * k * m * n; c = k * n * n; }
+      else { a = nz(-5, 5); b = ri(-9, 9); c = nz(-9, 9); }
+      var D = b * b - 4 * a * c;
+      return ['Сколько действительных корней у уравнения ' + polyStr([c, b, a]) + ' = 0?', D < 0 ? 0 : D === 0 ? 1 : 2];
+    } },
+    { id: 'alg_vertex', level: 3, kind: 'pair', gen: function () {
+      var a = choice([1, 2, 3, -1, -2, -3]), h = ri(-5, 5), k = ri(-9, 9);
+      return ['Найдите координаты вершины параболы y = ' + polyStr([a * h * h + k, -2 * a * h, a]) + '. Ответ — пара «x; y».', [h, k]];
+    } },
+    { id: 'alg_geom_sum', level: 3, gen: function () {
+      var b1 = ri(1, 4), q = choice([2, 3, -2]), n = ri(5, 8);
+      return ['Найдите сумму первых ' + n + ' членов геометрической прогрессии, если b₁ = ' + b1 + ', q = ' + sgn(q) + '.', b1 * (Math.pow(q, n) - 1) / (q - 1)];
+    } },
+    { id: 'alg_arith_sum', level: 3, gen: function () {
+      var a1 = ri(-5, 9), d = nz(-4, 6), n = ri(10, 25);
+      return ['Найдите сумму первых ' + n + ' членов арифметической прогрессии ' + sgn(a1) + '; ' + sgn(a1 + d) + '; ' + sgn(a1 + 2 * d) + '; …', n * (2 * a1 + (n - 1) * d) / 2];
+    } },
+    { id: 'alg_system2', level: 3, kind: 'pair', gen: function () {
+      var a1, b1, a2, b2, x0 = ri(-6, 6), y0 = ri(-6, 6);
+      do { a1 = nz(-5, 5); b1 = nz(-5, 5); a2 = nz(-5, 5); b2 = nz(-5, 5); } while (a1 * b2 - a2 * b1 === 0);
+      return ['Решите систему уравнений: ' + linEq(a1, b1, a1 * x0 + b1 * y0) + ' и ' + linEq(a2, b2, a2 * x0 + b2 * y0) + '. Ответ — пара «x; y».', [x0, y0]];
+    } },
+    { id: 'alg_vieta', level: 3, gen: function () {
+      var r1 = nz(-7, 7), r2 = nz(-7, 7);
+      return ['Числа x₁ и x₂ — корни уравнения ' + polyStr([r1 * r2, -(r1 + r2), 1]) + ' = 0. Найдите x₁² + x₂².', r1 * r1 + r2 * r2];
+    } },
+    { id: 'alg_poly_roots', level: 3, kind: 'set', gen: function () {
+      var r = [nz(-5, 5), nz(-5, 5), nz(-5, 5)];
+      while (r[0] === r[1] || r[1] === r[2] || r[0] === r[2]) r = [nz(-5, 5), nz(-5, 5), nz(-5, 5)];
+      var pf = pmul(pmul([-r[0], 1], [-r[1], 1]), [-r[2], 1]);
+      return ['Найдите все корни уравнения ' + polyStr(pf) + ' = 0. Ответ — три числа.', r.slice().sort(function (u, v) { return u - v; })];
+    } },
+    { id: 'alg_ineq_count', level: 3, gen: function () {
+      var r1 = ri(-8, 2), r2 = r1 + ri(3, 9);
+      return ['Сколько целых чисел являются решениями неравенства ' + polyStr([r1 * r2, -(r1 + r2), 1]) + ' < 0?', r2 - r1 - 1];
+    } }
+  ];
+
+  function newProblem(level, subject) {
+    var alg = subject === 'alg', pool = (alg ? APROBLEMS : PROBLEMS).filter(function (p) { return p.level === level; });
+    var p = choice(pool), g = p.gen();
+    return { id: p.id, level: level, subject: alg ? 'alg' : 'geo', kind: p.kind || 'num', tol: p.tol !== undefined ? p.tol : (alg ? 1e-6 : undefined), text: g[0], answer: g[1], show: g[2], hints: (alg ? AHINTS : HINTS)[p.id] };
+  }
+  function isCorrect(user, answer, tol) {
+    if (tol !== undefined) return Math.abs(user - answer) <= tol;
+    return Math.abs(user - answer) <= Math.max(0.01, Math.abs(answer) * 0.005);
+  }
+  function uniqSorted(arr, tol) {
+    var out = [];
+    arr.slice().sort(function (a, b) { return a - b; }).forEach(function (x) { if (!out.length || Math.abs(x - out[out.length - 1]) > tol) out.push(x); });
+    return out;
+  }
+  /* разбор ответа ученика: число, набор чисел или пара; в алгебре допустимы дроби (3/4) и выражения (sqrt(2)) */
+  function parseAnswer(raw, p) {
+    var s = String(raw).trim();
+    if (p.subject !== 'alg') {
+      var t = s.replace(/\s/g, '').replace(',', '.').replace(MINUS, '-');
+      return NUM_RE.test(t) ? { value: Number(t) } : { error: 'Введите число, например 12,57' };
+    }
+    if (!s) return { error: 'Введите ответ.' };
+    var parts = p.kind === 'num' ? [s] : s.split(/\s*;\s*|\s+и\s+|,\s+/).filter(function (x) { return x !== ''; }), vals = [], i;
+    for (i = 0; i < parts.length; i++) {
+      try { vals.push(evalNumber(parts[i])); }
+      catch (e) {
+        if (e instanceof CalcError) return { error: p.kind === 'num' ? 'Введите число или дробь, например −3, 0,75 или 3/4.' : 'Не удалось прочитать «' + parts[i] + '». Числа записывайте через точку с запятой, например 2; −3.' };
+        throw e;
+      }
+    }
+    if (p.kind === 'num') return { value: vals[0] };
+    if (p.kind === 'pair' && vals.length !== 2) return { error: 'Нужна пара чисел через точку с запятой: x; y.' };
+    return { value: vals };
+  }
+  function gradeAnswer(p, val) {
+    if (p.kind === 'num') return isCorrect(val, p.answer, p.tol);
+    var tol = p.tol === undefined ? 1e-6 : p.tol, a = p.answer, u = val;
+    if (p.kind === 'set') { a = uniqSorted(a, tol); u = uniqSorted(u, tol); }
+    if (a.length !== u.length) return false;
+    return a.every(function (x, i) { return Math.abs(x - u[i]) <= tol; });
+  }
+  function ansItem(v) {
+    if (Number.isInteger(v)) return signed(v);
+    var r = ratText(v);
+    if (r && !terminating(Number(r.split('/')[1]))) return r + ' ≈ ' + signed(fmt(v, 2));
+    return r ? sn(v) : signed(fmt(v, 2));
+  }
+  function showAns(p) {
+    if (p.show) return p.show;
+    if (p.subject !== 'alg') return fmt(p.answer, 2);
+    if (p.kind === 'num') return ansItem(p.answer);
+    if (p.kind === 'pair') return 'x = ' + ansItem(p.answer[0]) + ';  y = ' + ansItem(p.answer[1]);
+    return p.answer.map(ansItem).join(';  ');
+  }
+  function formatNote(p) {
+    if (p.subject !== 'alg') return '';
+    if (p.kind === 'set') return 'Числа через точку с запятой, порядок не важен, например: 2; −3. Дроби можно писать как 1/3.';
+    if (p.kind === 'pair') return 'Пара чисел через точку с запятой: x; y. Дроби можно писать как 1/3.';
+    return 'Число: целое, десятичное (0,75) или дробь (3/4).';
+  }
+  function gradeText(score, asked) {
+    var pct = score * 100 / asked;
+    return pct >= 90 ? 'Отлично!' : pct >= 70 ? 'Хорошо' : pct >= 40 ? 'Нужно повторить' : 'Попробуйте уровнем ниже';
+  }
+
+  window.GEO = { FIG: FIG, PROBLEMS: PROBLEMS, HINTS: HINTS, newProblem: newProblem, isCorrect: isCorrect, parsePoly: parsePoly, parseValue: parseValue, checkPolygon: checkPolygon, fmt: fmt, heron: heron, gradeText: gradeText,
+    ALG: ALG, APROBLEMS: APROBLEMS, AHINTS: AHINTS, compileExpr: compileExpr, evalNumber: evalNumber, polyOf: polyOf, pTrim: pTrim, polyStr: polyStr, polyRoots: polyRoots,
+    factorRational: factorRational, factorStr: factorStr, findRoots: findRoots, solveSystem: solveSystem, solveEq: solveEq, toFrac: toFrac, exactQuad: exactQuad,
+    parseAnswer: parseAnswer, gradeAnswer: gradeAnswer, showAns: showAns, polyEval: polyEval, polyDeriv: polyDeriv, polyInteg: polyInteg, tokenize: tokenize, fmtN: fmtN, linEq: linEq, getQ: function () { return Q; } };
+
+  /* --------------------------------------------------------------- UI */
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* без хранилища страница работает как обычно */ } }
+  };
+
+  /* вкладки */
+  var tabs = { calculator: $('tab-calculator'), trainer: $('tab-trainer') };
+  var views = { calculator: $('view-calculator'), trainer: $('view-trainer') };
+  function showTab(name, focus) {
+    Object.keys(tabs).forEach(function (k) {
+      var on = k === name;
+      tabs[k].setAttribute('aria-selected', on ? 'true' : 'false');
+      tabs[k].tabIndex = on ? 0 : -1;
+      views[k].hidden = !on;
+    });
+    if (focus) tabs[name].focus();
+  }
+  Object.keys(tabs).forEach(function (k) {
+    tabs[k].addEventListener('click', function () { showTab(k); });
+    tabs[k].addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { var other = k === 'calculator' ? 'trainer' : 'calculator'; showTab(other, true); e.preventDefault(); }
+    });
+  });
+
+  /* калькулятор */
+  var SUBJ = 'geo', lastFig = { geo: 'circle', alg: 'a-eval' };
+  var ALL = FIG.map(function (f) { f.subject = 'geo'; return f; }).concat(ALG);
+  var NOTE_DEFAULT = $('calc-note').textContent, LEAD_GEO = $('q-lead').textContent, FOOT_GEO = $('footer-note').textContent;
+  var LEAD_ALG = 'Задачи с новыми числами при каждом запуске. Ответ — число, обыкновенная дробь (3/4) или десятичная запись; если ответов несколько, их записывают через точку с запятой. К каждой задаче есть две подсказки: сначала правило, потом порядок действий.';
+  var FOOT_ALG = 'Степень записывается знаком ^ (x^2), корень — sqrt(…), дробь — знаком /, умножение между числом и скобкой или x можно опустить: 2x, 3(x + 1). Число π — pi, углы в тригонометрических функциях — в радианах. Все вычисления выполняются в браузере.';
+  var cur = FIG[0], inputs = {};
+  var figsNav = $('figs'), figSelect = $('fig-select');
+  function buildPicker() {
+    var group = '', html = '', selHtml = '', open = false;
+    ALL.filter(function (f) { return f.subject === SUBJ; }).forEach(function (f) {
+      if (f.group !== group) {
+        if (open) selHtml += '</optgroup>';
+        group = f.group; open = true;
+        html += '<h2 class="eyebrow">' + f.group + '</h2>';
+        selHtml += '<optgroup label="' + f.group + '">';
+      }
+      html += '<button type="button" class="fig" data-id="' + f.id + '">' + f.name + '</button>';
+      selHtml += '<option value="' + f.id + '">' + f.name + '</option>';
+    });
+    figsNav.innerHTML = html;
+    figSelect.innerHTML = selHtml + '</optgroup>';
+    $('picker-label').textContent = SUBJ === 'alg' ? 'Раздел' : 'Фигура';
+    figsNav.setAttribute('aria-label', SUBJ === 'alg' ? 'Разделы алгебры' : 'Фигуры');
+  }
+
+  /* переключатель предмета: геометрия / алгебра */
+  function setSubject(name) {
+    SUBJ = name === 'alg' ? 'alg' : 'geo';
+    $('subj-geo').setAttribute('aria-pressed', SUBJ === 'geo' ? 'true' : 'false');
+    $('subj-alg').setAttribute('aria-pressed', SUBJ === 'alg' ? 'true' : 'false');
+    store.set('geo.subject', SUBJ);
+    $('footer-note').textContent = SUBJ === 'alg' ? FOOT_ALG : FOOT_GEO;
+    $('q-lead').textContent = SUBJ === 'alg' ? LEAD_ALG : LEAD_GEO;
+    $('q-eyebrow').textContent = SUBJ === 'alg' ? 'Тренажёр · алгебра' : 'Тренажёр · геометрия';
+    buildPicker();
+    selectFig(lastFig[SUBJ]);
+    showQ('setup');   /* незаконченный тренажёр другого предмета сбрасывается */
+  }
+  $('subj-geo').addEventListener('click', function () { if (SUBJ !== 'geo') setSubject('geo'); });
+  $('subj-alg').addEventListener('click', function () { if (SUBJ !== 'alg') setSubject('alg'); });
+  figsNav.addEventListener('click', function (e) {
+    var b = e.target.closest('button.fig');
+    if (b) selectFig(b.getAttribute('data-id'));
+  });
+  figSelect.addEventListener('change', function () { selectFig(figSelect.value); });
+
+  function selectFig(id) {
+    drag = null; FROZEN = null;
+    cur = ALL.filter(function (f) { return f.subject === SUBJ && f.id === id; })[0] || ALL.filter(function (f) { return f.subject === SUBJ; })[0];
+    lastFig[SUBJ] = cur.id;
+    $('calc-note').textContent = cur.note || NOTE_DEFAULT;
+    figSelect.value = cur.id;
+    Array.prototype.forEach.call(figsNav.querySelectorAll('button.fig'), function (b) {
+      if (b.getAttribute('data-id') === cur.id) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    $('fig-title').textContent = cur.name;
+    var html = '';
+    inputs = {};
+    cur.fields.forEach(function (f) {
+      var fid = 'f-' + f.k;
+      html += '<div class="field"><label for="' + fid + '">' + (f.sym && f.kind !== 'poly' ? '<b>' + f.sym + '</b>' : '') + f.label + '</label>';
+      if (f.kind === 'poly') html += '<textarea class="field-input" id="' + fid + '" spellcheck="false" autocomplete="off" aria-describedby="e-' + f.k + '">' + esc(f.def) + '</textarea>';
+      else html += '<input class="field-input" id="' + fid + '" type="text" inputmode="' + (f.kind === 'expr' || f.kind === 'any' ? 'text' : 'decimal') + '" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(f.def) + '" aria-describedby="e-' + f.k + '">';
+      html += '<p class="err" id="e-' + f.k + '"></p>' + (f.hint ? '<p class="fhint">' + esc(f.hint) + '</p>' : '') + '</div>';
+    });
+    $('fields').innerHTML = html;
+    cur.fields.forEach(function (f) {
+      var el = $('f-' + f.k); inputs[f.k] = el;
+      el.addEventListener('input', recalc);
+    });
+    recalc();
+  }
+
+  function parseField(raw, f) {
+    if (f.kind === 'poly') return parsePoly(raw);
+    if (f.kind === 'expr') {
+      var t = String(raw).trim();
+      if (!t) return { empty: true };
+      try {
+        if (f.eq) { var sp = splitEq(t); compileExpr(sp.l); compileExpr(sp.r); } else compileExpr(t);
+      } catch (e) {
+        if (e instanceof CalcError) return { error: e.message };
+        throw e;
+      }
+      return { value: t };
+    }
+    return parseValue(raw, f);
+  }
+
+  function readValues() {
+    var vals = {}, defs = {}, ok = true, empty = false;
+    cur.fields.forEach(function (f) {
+      var raw = inputs[f.k].value, errEl = $('e-' + f.k);
+      var r = parseField(raw, f), d = parseField(f.def, f).value;
+      defs[f.k] = d;
+      if (r.value !== undefined) { vals[f.k] = r.value; errEl.textContent = ''; inputs[f.k].removeAttribute('aria-invalid'); }
+      else {
+        ok = false;
+        if (r.empty) { empty = true; errEl.textContent = ''; inputs[f.k].removeAttribute('aria-invalid'); }
+        else { errEl.textContent = r.error; inputs[f.k].setAttribute('aria-invalid', 'true'); }
+      }
+    });
+    return { vals: vals, defs: defs, ok: ok, empty: empty };
+  }
+
+  function recalc() {
+    var rd = readValues(), res = $('results'), dia = $('diagram');
+    var v = rd.ok ? rd.vals : rd.defs;
+    var out = '';
+    if (!rd.ok) {
+      out = '<p class="msg neutral">' + (rd.empty ? 'Заполните все поля, и результат появится здесь.' : 'Исправьте значения в полях, отмеченных красным.') + '</p>';
+    } else {
+      try {
+        var rows = cur.calc(v);
+        out = '<ul class="rows">' + rows.map(function (r) {
+          var val;
+          if (r.kind === 'text') val = esc(r.text);
+          else { if (!Number.isFinite(r.value)) throw new CalcError('Число слишком велико для вычисления.'); val = fmt(r.value) + '<span class="unit">' + UNIT[r.kind].trim() + '</span>'; }
+          return '<li class="row' + (r.kind === 'text' && r.text.length > 34 ? ' stack' : r.kind === 'text' && r.text.length > 12 ? ' mid' : '') + '"><div><span class="name">' + r.label + '</span>' + (r.formula ? '<span class="formula">' + r.formula + '</span>' : '') + '</div><div class="val' + (r.kind === 'text' && r.text.length > 16 ? ' long' : '') + '">' + val + '</div></li>';
+        }).join('') + '</ul>';
+      } catch (e) {
+        if (e instanceof CalcError) out = '<p class="msg"><b>Не удаётся вычислить.</b> ' + esc(e.message) + '</p>';
+        else throw e;
+      }
+    }
+    res.innerHTML = out;
+    HANDLES = []; INTERACT = rd.ok;   /* пока в полях ошибка, ручек нет */
+    var svg = '';
+    try { svg = cur.draw(v, rd.ok); } catch (e) { svg = ''; }
+    dia.innerHTML = svg; dia.hidden = !svg;
+    dia.classList.toggle('plot', !!cur.plot);
+    document.querySelector('.workbench').classList.toggle('nodia', !svg);
+    if (drag) markActive();
+  }
+
+  /* перетаскивание точек на схеме */
+  var diaEl = $('diagram'), drag = null;
+  function markActive() {
+    var el = diaEl.querySelector('[data-h="' + drag.id + '"]');
+    if (el) el.classList.add('active');
+  }
+  function findHandle(id) { return HANDLES.filter(function (h) { return h.id === id; })[0]; }
+  function applyPatch(patch) {
+    if (!patch) return false;
+    Object.keys(patch).forEach(function (k) {
+      var val = patch[k];
+      inputs[k].value = typeof val === 'number' ? String(val).replace('.', ',') : val;
+      inputs[k].removeAttribute('aria-invalid');
+    });
+    recalc();
+    return true;
+  }
+  function svgPoint(e) {
+    var svg = diaEl.querySelector('svg'), m = svg && svg.getScreenCTM();
+    if (!m) return null;
+    var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    var q = pt.matrixTransform(m.inverse());
+    return [q.x, q.y];
+  }
+  function worldAt(e) {
+    var q = svgPoint(e);
+    return q && FROZEN ? FROZEN.inv(q[0], q[1]) : null;
+  }
+  /* ближайшая к касанию ручка: если ручки стоят вплотную, выигрывает не верхняя, а та, в центр которой попали */
+  function nearestHandle(e) {
+    var q = svgPoint(e), best = null, bd = Infinity;
+    if (!q || !LASTFIT) return null;
+    HANDLES.forEach(function (h) {
+      var p = LASTFIT.p(h.w[0], h.w[1]), d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+      if (d < bd) { bd = d; best = h; }
+    });
+    return best && bd <= 18 ? best : null;
+  }
+  function endDrag() {
+    if (!drag) return;
+    drag = null; FROZEN = null;
+    diaEl.classList.remove('dragging');
+    recalc();   /* схема снова подгоняется под рамку */
+  }
+  diaEl.addEventListener('pointerdown', function (e) {
+    var h = nearestHandle(e);
+    if (!h) return;
+    e.preventDefault();
+    FROZEN = LASTFIT;
+    var w = worldAt(e);
+    drag = { id: h.id, dx: w ? w[0] - h.w[0] : 0, dy: w ? w[1] - h.w[1] : 0 };   /* ручка не прыгает под указатель */
+    try { diaEl.setPointerCapture(e.pointerId); } catch (err) { /* без захвата работают события над схемой */ }
+    diaEl.classList.add('dragging');
+    markActive();
+  });
+  diaEl.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var h = findHandle(drag.id), w = worldAt(e);
+    if (!h || !w) return;
+    applyPatch(h.apply([w[0] - drag.dx, w[1] - drag.dy]));
+  });
+  diaEl.addEventListener('pointerup', endDrag);
+  diaEl.addEventListener('pointercancel', endDrag);
+  diaEl.addEventListener('lostpointercapture', endDrag);
+  diaEl.addEventListener('keydown', function (e) {
+    var g = e.target.closest ? e.target.closest('.handle') : null;
+    var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+    if (!g || !d) return;
+    var h = findHandle(g.getAttribute('data-h'));
+    if (!h) return;
+    e.preventDefault();
+    var st = niceStep(h.s) * (e.shiftKey ? 10 : 1);
+    if (applyPatch(h.apply([h.w[0] + d[0] * st, h.w[1] + d[1] * st]))) {
+      var again = diaEl.querySelector('[data-h="' + h.id + '"]');
+      if (again) again.focus();
+    }
+  });
+
+  /* тренажёр */
+  var Q = { level: 1, count: 5, i: 0, score: 0, asked: 0, shown: 0, answered: false, cur: null, log: [] };
+  var elSetup = $('q-setup'), elPlay = $('q-play'), elDone = $('q-done');
+  function showQ(which) { elSetup.hidden = which !== 'setup'; elPlay.hidden = which !== 'play'; elDone.hidden = which !== 'done'; }
+
+  (function restoreSettings() {
+    var l = parseInt(store.get('geo.level'), 10), c = parseInt(store.get('geo.count'), 10);
+    if (l >= 1 && l <= 4) Q.level = l;
+    if (c >= 1 && c <= 20) Q.count = c;
+    var r = document.querySelector('#levels input[value="' + Q.level + '"]');
+    if (r) r.checked = true;
+    $('count').value = Q.count;
+  })();
+
+  function startQuiz() {
+    var checked = document.querySelector('#levels input:checked');
+    Q.level = checked ? parseInt(checked.value, 10) : 1;
+    Q.subject = SUBJ;
+    var raw = $('count').value.trim(), n = Number(raw);
+    var cerr = $('count-err');
+    if (!/^\d+$/.test(raw) || n < 1 || n > 20) { cerr.textContent = 'Введите целое число от 1 до 20.'; $('count').setAttribute('aria-invalid', 'true'); return; }
+    cerr.textContent = ''; $('count').removeAttribute('aria-invalid');
+    Q.count = n; Q.i = 0; Q.score = 0; Q.asked = 0; Q.log = [];
+    store.set('geo.level', String(Q.level)); store.set('geo.count', String(n));
+    showQ('play');
+    nextProblem();
+  }
+  function updateScore() { $('q-score').textContent = 'Верно: ' + Q.score + ' из ' + Q.asked; }
+  function nextProblem() {
+    if (Q.i >= Q.count) { finish(); return; }
+    Q.i++;
+    var lvl = Q.level < 4 ? Q.level : ri(1, 3);
+    Q.cur = newProblem(lvl, Q.subject); Q.shown = 0; Q.answered = false;
+    $('q-num').textContent = 'Задача ' + Q.i + ' из ' + Q.count;
+    $('q-level').textContent = LEVEL_NAMES[lvl];
+    $('q-bar').style.width = ((Q.i - 1) / Q.count * 100) + '%';
+    $('q-text').textContent = Q.cur.text;
+    var a = $('q-answer'); a.value = ''; a.disabled = false;
+    a.placeholder = Q.cur.kind === 'pair' ? 'x; y' : Q.cur.kind === 'set' ? '2; −3' : '';
+    a.setAttribute('inputmode', Q.cur.subject === 'alg' ? 'text' : 'decimal');
+    $('q-format').textContent = formatNote(Q.cur);
+    $('q-err').textContent = ''; a.removeAttribute('aria-invalid');
+    $('q-hints').hidden = true; $('q-hints').innerHTML = '';
+    var fb = $('q-feedback'); fb.hidden = true; fb.className = 'feedback'; fb.textContent = '';
+    $('q-check').disabled = false; $('q-hint').disabled = false; $('q-hint').textContent = 'Подсказка';
+    $('q-skip').hidden = false; $('q-next').hidden = true;
+    updateScore();
+    a.focus();
+  }
+  function checkAnswer() {
+    if (Q.answered) return;
+    var inp = $('q-answer'), pr = parseAnswer(inp.value, Q.cur);
+    if (pr.error) { $('q-err').textContent = pr.error; inp.setAttribute('aria-invalid', 'true'); return; }
+    $('q-err').textContent = ''; inp.removeAttribute('aria-invalid');
+    var ok = gradeAnswer(Q.cur, pr.value);
+    Q.answered = true; Q.asked++; if (ok) Q.score++;
+    Q.log.push({ text: Q.cur.text, user: inp.value.trim(), ans: showAns(Q.cur), ok: ok, hints: Q.shown, skipped: false });
+    var fb = $('q-feedback'); fb.hidden = false;
+    fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
+    fb.textContent = ok ? 'Верно!' + (Q.shown ? ' (с подсказкой)' : '') : 'Неверно. Правильный ответ: ' + showAns(Q.cur);
+    afterAnswer();
+  }
+  function afterAnswer() {
+    $('q-answer').disabled = true; $('q-check').disabled = true; $('q-hint').disabled = true; $('q-skip').hidden = true;
+    var nx = $('q-next'); nx.hidden = false; nx.textContent = Q.i >= Q.count ? 'Показать итог' : 'Дальше';
+    updateScore();
+    $('q-bar').style.width = (Q.i / Q.count * 100) + '%';
+    nx.focus();
+  }
+  function skipProblem() {
+    if (Q.answered) return;
+    Q.answered = true;
+    Q.log.push({ text: Q.cur.text, user: '', ans: showAns(Q.cur), ok: false, hints: Q.shown, skipped: true });
+    var fb = $('q-feedback'); fb.hidden = false; fb.className = 'feedback bad';
+    fb.textContent = 'Пропущено. Правильный ответ: ' + showAns(Q.cur);
+    afterAnswer();
+  }
+  function showHint() {
+    if (Q.answered || Q.shown >= Q.cur.hints.length) return;
+    Q.shown++;
+    var box = $('q-hints'); box.hidden = false;
+    box.innerHTML = Q.cur.hints.slice(0, Q.shown).map(function (h, i) { return '<p><b>Подсказка ' + (i + 1) + '.</b> ' + esc(h) + '</p>'; }).join('');
+    if (Q.shown >= Q.cur.hints.length) $('q-hint').disabled = true; else $('q-hint').textContent = 'Ещё подсказка';
+  }
+  function finish() {
+    showQ('done');
+    var pct = Q.asked ? Math.round(Q.score * 100 / Q.asked) : 0;
+    $('d-score').textContent = Q.score + ' из ' + Q.asked;
+    $('d-grade').textContent = Q.asked ? pct + '%. ' + gradeText(Q.score, Q.asked) : 'Вы не ответили ни на одну задачу.';
+    var skipped = Q.log.filter(function (l) { return l.skipped; }).length;
+    $('d-sub').textContent = skipped ? 'Пропущено задач: ' + skipped + '.' : '';
+    $('d-review').innerHTML = Q.log.map(function (l, i) {
+      var tag = l.skipped ? '<span class="tag">Пропущено</span>' : l.ok ? '<span class="tag ok">Верно</span>' : '<span class="tag bad">Неверно</span>';
+      return '<li><p class="t">' + (i + 1) + '. ' + esc(l.text) + '</p><p class="r">' + tag + (l.skipped ? '' : '<span>Ваш ответ: ' + esc(l.user) + '</span>') + '<span>Ответ: ' + esc(l.ans) + '</span>' + (l.hints ? '<span>Подсказок: ' + l.hints + '</span>' : '') + '</p></li>';
+    }).join('');
+    $('d-again').focus();
+  }
+  $('start').addEventListener('click', startQuiz);
+  $('q-check').addEventListener('click', checkAnswer);
+  $('q-answer').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); checkAnswer(); } });
+  $('q-hint').addEventListener('click', showHint);
+  $('q-skip').addEventListener('click', skipProblem);
+  $('q-next').addEventListener('click', nextProblem);
+  $('q-stop').addEventListener('click', finish);
+  $('d-again').addEventListener('click', startQuiz);
+  $('d-settings').addEventListener('click', function () { showQ('setup'); });
+  $('count').addEventListener('keydown', function (e) { if (e.key === 'Enter') startQuiz(); });
+
+  /* старт: ссылка …#trainer открывает тренажёр, …#algebra — алгебру, …#algebra-trainer — тренажёр по алгебре */
+  var h = (location.hash || '').replace('#', '').toLowerCase();
+  var firstTab = h.indexOf('trainer') >= 0 ? 'trainer' : 'calculator';
+  var startSubj = h.indexOf('algebra') >= 0 ? 'alg' : (h.indexOf('geometry') >= 0 || h.indexOf('trainer') >= 0) ? 'geo' : (store.get('geo.subject') === 'alg' ? 'alg' : 'geo');
+  setSubject(startSubj);
+  showTab(firstTab);
+  showQ('setup');
+})();
+</script>
